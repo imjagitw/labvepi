@@ -78,20 +78,11 @@ def modal_confirmar_animal(animal_data):
         "observacoes": "Observações"
     }
 
-    col1, col2 = st.columns(2)
-    items = list(animal_data.items())
-    half = (len(items) + 1) // 2
+    for k, v in animal_data.items():
+        lbl = rotulos.get(k, k)
+        st.markdown(f"**{lbl}:** {v}")
 
-    with col1:
-        for k, v in items[:half]:
-            lbl = rotulos.get(k, k)
-            st.markdown(f"**{lbl}:** {v}")
-    with col2:
-        for k, v in items[half:]:
-            lbl = rotulos.get(k, k)
-            st.markdown(f"**{lbl}:** {v}")
-
-    c_canc, c_edit, c_conf = st.columns([1.2, 1, 1])
+    c_canc, c_edit, c_conf = st.columns([1, 1, 1])
     
     with c_canc:
         if st.button("Cancelar", type="secondary", icon=":material/close:", use_container_width=True):
@@ -119,61 +110,56 @@ def modal_confirmar_animal(animal_data):
 def render_form_registro_animal():
     st.header("Novo Animal")
     with st.form("form_registro_animal"):
-        
-        animal_id_input = st.text_input(
-            "ID do Animal (único) :red[*]", placeholder="Ex: ANM001")
-        err_id = st.empty()
-        
-        animal_id_projeto = st.text_input("ID do Projeto")
-        
-        animal_hvu = st.text_input(
-            "ID do HVU (Hospital Veterinário Universitário)")
-        
-        animal_nome_comum = st.text_input("Nome Comum :red[*]")
-        err_nome_comum = st.empty()
-        
-        animal_nome_cientifico = st.text_input("Nome Científico :red[*]")
-        err_nome_cientifico = st.empty()
-        
-        animal_sexo = st.selectbox(
-            "Sexo :red[*]", ["", "Macho", "Fêmea", "Desconhecido"])
-        err_sexo = st.empty()
 
-        # Peso é obrigatório: deve-se informar um valor numérico em kg ou marcar 'Não aferido'
-        col_peso1, col_peso2 = st.columns([3, 1])
+        # --- 🏷️ IDENTIFICAÇÃO DO ANIMAL ---
+        st.subheader(":material/label: Identificação")
+        col_id1, col_id2, col_id3, col_microchip = st.columns([2, 2, 2, 2])
+        
+        with col_id1:
+            animal_id_input = st.text_input(
+                "ID do Animal (único) :red[*]", placeholder="Ex: ANM001")
+            err_id = st.empty()
+        
+        with col_id2:
+            animal_id_projeto = st.text_input("ID do Projeto")
+        
+        with col_id3:
+            animal_hvu = st.text_input(
+                "ID do HVU (Hospital Veterinário)")
+        
+        with col_microchip:
+            animal_microchip = st.text_input("Microchip")
+        
+        st.divider()
+
+        # --- 🧬 TAXONOMIA E BIOMETRIA ---
+        st.subheader(":material/genetics: Taxonomia & Biometria")
+        col_classe, col_nome_comum, col_nome_cientifico, col_sexo = st.columns([2, 2, 2, 2])
+        with col_classe:
+            animal_classe = st.selectbox(
+                'Classe :red[*]', ["", "Ave", "Mamífero", "Répteis", 'Anfíbios', "Peixes"]
+            )
+            err_classe = st.empty()
+        with col_nome_comum:
+            animal_nome_comum = st.text_input("Nome Comum :red[*]")
+            err_nome_comum = st.empty()
+        with col_nome_cientifico:
+            animal_nome_cientifico = st.text_input("Nome Científico :red[*]")
+            err_nome_cientifico = st.empty()
+        with col_sexo:
+            animal_sexo = st.selectbox(
+                "Sexo :red[*]", ["", "Macho", "Fêmea", "Desconhecido"])
+            err_sexo = st.empty()
+
+        col_peso1, col_peso2, col_idade1, col_idade2 = st.columns([2, 2, 2, 2])
         with col_peso1:
             animal_peso_val = st.number_input(
                 "Peso (kg) :red[*]", min_value=0.0, format="%.2f", step=0.01,
-                help="Informe o peso em kg ou marque a opção 'Não aferido'"
             )
         with col_peso2:
-            st.markdown("<div style='margin-top: 35px;'></div>", unsafe_allow_html=True)
+            st.markdown("<div style='margin-top: 32px;'></div>", unsafe_allow_html=True)
             peso_nao_aferido = st.checkbox("Não aferido")
         err_peso = st.empty()
-
-        animal_microchip = st.text_input("Microchip")
-
-        animal_orgao = st.selectbox(
-            'Órgão de Origem :red[*]', ['', 'UFPI', 'NEPPAS', 'IBAMA - CETAS - PI', 'IBAMA - CETAS - CE', 'IBAMA - CETAS - RN', 'SEMARH - CETAS - PI',
-            'UFPA', 'UFRR', 'UFAC', 'UFOB', 'DSEI LESTE - AM', 'ZOOLOGICO -PI', 'PARTICULAR', 'Outro']
-        )
-        err_orgao = st.empty()
-
-        animal_status = st.selectbox(
-            'Status do Animal :red[*]', ["", "Vida livre", "Cativeiro"]
-        )
-        err_status = st.empty()
-
-        animal_funcao = st.selectbox(
-            'Função :red[*]', ['', "PET", "Trabalho", "Lazer", "Outros"]
-        )
-        err_funcao = st.empty()
-
-        animal_local_origem = st.text_input("Local de Origem :red[*]")
-        err_local_origem = st.empty()
-
-        # Idade e Faixa Etária: pelo menos um deve ser informado. Idade traz Faixa Etária automaticamente.
-        col_idade1, col_idade2 = st.columns(2)
         with col_idade1:
             animal_idade = st.text_input(
                 "Idade",
@@ -187,17 +173,38 @@ def render_form_registro_animal():
             )
         err_idade_faixa = st.empty()
 
-        animal_observacoes = st.text_area("Observações (opcional)")
+        st.divider()
 
-        animal_classe = st.selectbox(
-            'Classe :red[*]', ["", "Ave", "Mamífero", "Répteis", 'Anfíbios', "Peixes"]
-        )
-        err_classe = st.empty()
+        # --- 📍 ORIGEM E PROCEDÊNCIA ---
+        st.subheader(":material/location_on: Origem e Procedência")
+        col_orgao, col_local, col_status, col_funcao = st.columns([2, 2, 2, 2])
+        with col_orgao:
+            animal_orgao = st.selectbox(
+                'Órgão de Origem :red[*]', ['', 'UFPI', 'NEPPAS', 'IBAMA - CETAS - PI', 'IBAMA - CETAS - CE', 'IBAMA - CETAS - RN', 'SEMARH - CETAS - PI',
+                'UFPA', 'UFRR', 'UFAC', 'UFOB', 'DSEI LESTE - AM', 'ZOOLOGICO -PI', 'PARTICULAR', 'Outro']
+            )
+            err_orgao = st.empty()
+        with col_status:
+            animal_status = st.selectbox(
+                'Status do Animal :red[*]', ["", "Vida livre", "Cativeiro"]
+            )
+            err_status = st.empty()
+        with col_funcao:
+            animal_funcao = st.selectbox(
+                'Função :red[*]', ['', "PET", "Trabalho", "Lazer", "Outros"]
+            )
+            err_funcao = st.empty()
+        with col_local:
+            animal_local_origem = st.text_input("Local de Origem :red[*]")
+            err_local_origem = st.empty()
 
-        animal_suspeita = st.text_input(
-            'Suspeita Clínica'
-        )
+        st.divider()
 
+        # --- 📋 CLÍNICA E OBSERVAÇÕES ---
+        st.subheader(":material/notes: Observações")
+        animal_suspeita = st.text_input('Suspeita Clínica')
+        animal_observacoes = st.text_area("Observações")
+        
         col_space, col_submit = st.columns([3, 1])
         with col_submit:
             submit_animal = st.form_submit_button("Registrar Animal", type="primary", use_container_width=True)
