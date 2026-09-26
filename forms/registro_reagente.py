@@ -4,9 +4,8 @@ from utils import add_document
 
 
 def render_form_registro_reagente():
-    st.header("Registrar Novo Reagente")
+    st.header("Novo Reagente")
     with st.form("form_registro_reagente"):
-        st.markdown("**Informações do Reagente**")
         reagente_id_input = st.text_input(
             "ID do Reagente (único)", placeholder="Ex: REG001")
         reagente_nome = st.text_input("Nome do Reagente")

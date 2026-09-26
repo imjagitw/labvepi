@@ -4,9 +4,8 @@ from utils import connect_to_mongo, add_document
 
 
 def render_form_registro_exame():
-    st.header("Registrar Novo Exame")
+    st.header("Novo Exame")
     with st.form("form_registro_exame"):
-        st.markdown("**Informações do Exame**")
         exame_id_input = st.text_input(
             "ID do Exame (único)", placeholder="Ex: EXM001")
 

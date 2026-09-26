@@ -2,11 +2,10 @@ import streamlit as st
 from datetime import date
 from utils import connect_to_mongo, add_document
 
-
 def render_form_registro_amostra():
-    st.header("Registrar Nova Amostra")
+    st.header("Nova Amostra")
     with st.form("form_registro_amostra"):
-        st.markdown("**Informações da Amostra**")
+
         amostra_id_input = st.text_input(
             "ID da Amostra (único)", placeholder="Ex: AMS001")
 

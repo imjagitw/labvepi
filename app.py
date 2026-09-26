@@ -85,6 +85,7 @@ def pagina_inicio():
 # ---------------------------------------------------------
 p_inicio = st.Page(pagina_inicio, title="Início", icon=":material/home:", default=True)
 p_novo = st.Page("pages/Novo_Registro.py", title="Novo Registro", icon=":material/add:")
+p_novo_animal = st.Page("forms/registro_animal.py", title="Novo Registro Animal", icon=":material/add:")
 p_editar = st.Page("pages/Editar_Amostra.py", title="Editar Amostra", icon=":material/edit:")
 p_importar = st.Page("pages/Importar.py", title="Importar", icon=":material/upload:")
 p_registros = st.Page("pages/Registros.py", title="Registros", icon=":material/table_view:")
@@ -93,7 +94,11 @@ p_relatorios = st.Page("pages/Relatorios.py", title="Relatórios", icon=":materi
 if st.session_state['LOGGED_IN']:
     pg = st.navigation({
         "Geral": [p_inicio],
-        "Operacional": [p_novo, p_editar, p_importar],
+        "Operacional": [
+            p_novo, 
+            p_editar, 
+            p_importar
+        ],
         "Consultas & Dados": [p_registros, p_relatorios]
     })
 else:
@@ -107,7 +112,6 @@ pg.run()
 # ---------------------------------------------------------
 if st.session_state['LOGGED_IN']:
     with st.sidebar:
-        st.divider()
         st.markdown(f":material/person: **{st.session_state['username']}**")
         st.caption(f"Perfil: {st.session_state.get('matricula', 'Colaborador')}")
         
