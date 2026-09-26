@@ -34,19 +34,20 @@ def connect_to_mongo():
 # ---------------------------------------------------------
 def pagina_inicio():
     # Logo e cabeçalho sempre no topo da área principal
-    col1, col2, col3 = st.columns([1, 1, 1])
+    col1, col2 = st.columns([1, 4], vertical_alignment="center")
+    with col1:
+        st.image("logo.png", width=150)
     with col2:
-        st.image("logo.png", width=200)
+        st.markdown(
+            """
+            <h1 style='font-size: 28px; margin: 0; padding: 0;'>
+                LABVEPI - Laboratório de Vigilância de Epizootias - UFPI
+            </h1>
+            """,
+            unsafe_allow_html=True
+        )
+    st.markdown("<div style='margin-bottom: 25px;'></div>", unsafe_allow_html=True)
 
-    st.markdown(
-        """
-        <h1 style='text-align: center; font-size: 30px; margin-top: 5px; margin-bottom: 25px;'>
-            LABVEPI - Laboratório de Vigilância de Epizootias - UFPI
-        </h1>
-        """,
-        unsafe_allow_html=True
-    )
-    st.divider()
 
     # Conteúdo condicional abaixo do cabeçalho
     if not st.session_state['LOGGED_IN']:
@@ -62,7 +63,7 @@ def pagina_inicio():
     else:
         st.success(f"Sessão ativa: **{st.session_state['username']}** ({st.session_state.get('matricula', 'Colaborador')})")
         
-        tab_painel, tab_users, tab_novo_user = st.tabs(["📌 Informações", ":material/group: Listar Usuários", ":material/add: Cadastrar Usuário"])
+        tab_painel, tab_users, tab_novo_user = st.tabs([":material/info: Informações", ":material/group: Listar Usuários", ":material/add: Cadastrar Usuário"])
         with tab_painel:
             st.markdown(
                 """
@@ -107,10 +108,10 @@ pg.run()
 if st.session_state['LOGGED_IN']:
     with st.sidebar:
         st.divider()
-        st.markdown(f"👤 **{st.session_state['username']}**")
+        st.markdown(f":material/person: **{st.session_state['username']}**")
         st.caption(f"Perfil: {st.session_state.get('matricula', 'Colaborador')}")
         
-        if st.button("Sair (Logout)", icon=":material/logout:", key="btn_logout_global", use_container_width=True):
+        if st.button("Sair", icon=":material/logout:", key="btn_logout_global", use_container_width=True):
             st.session_state['LOGGED_IN'] = False
             st.session_state['username'] = None
             st.session_state['matricula'] = None
