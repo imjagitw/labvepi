@@ -1,9 +1,7 @@
 import streamlit as st
-import json
 import os
 import pandas as pd
 from datetime import datetime
-import bcrypt
 from utils import check_usr_pass
 from streamlit_option_menu import option_menu
 from utils import (
@@ -16,13 +14,11 @@ from utils import (
 )
 from pymongo import MongoClient
 
-
 def connect_to_mongo():
     uri = ("mongodb+srv://emiliods79:uD5A2J4o38dpk0hX@cluster0.ufpae.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0")
     client = MongoClient(uri)
     db = client['pibit_app']  # Ou já especificado na URI, se preferir.
     return db
-
 
 class __login__:
     def __init__(

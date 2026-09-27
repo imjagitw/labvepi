@@ -6,7 +6,6 @@ import pandas as pd
 
 # Conexão ao MongoDB (usando variável de ambiente)
 
-
 def connect_to_mongo():
     uri = os.environ.get(
         "MONGO_URI",
@@ -15,7 +14,6 @@ def connect_to_mongo():
     client = MongoClient(uri)
     db = client['pibit_app']
     return db
-
 
 db = connect_to_mongo()
 
