@@ -6,14 +6,7 @@ import plotly.express as px
 import unicodedata
 
 # --- Conexão ao MongoDB ---
-def connect_to_mongo():
-    uri = os.environ.get(
-        "MONGO_URI",
-        "mongodb+srv://emiliods79:uD5A2J4o38dpk0hX@cluster0.ufpae.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
-    )
-    client = MongoClient(uri)
-    db = client['pibit_app']
-    return db
+from utils import connect_to_mongo
 
 db = connect_to_mongo()
 animais_col = db['animais']
