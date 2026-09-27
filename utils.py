@@ -17,10 +17,26 @@ import re
 import requests
 
 def connect_to_mongo():
-    uri = ("mongodb+srv://emiliods79:uD5A2J4o38dpk0hX@cluster0.ufpae.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0")
+    uri = os.environ.get(
+        'MONGO_URI', "mongodb+srv://emiliods79:uD5A2J4o38dpk0hX@cluster0.ufpae.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0")
     client = MongoClient(uri)
     db = client['pibit_app']  # Ou já especificado na URI, se preferir.
     return db
+
+def add_document(collection_name, doc_data):
+    db = connect_to_mongo()
+    collection = db[collection_name]
+
+    # Verifica se o _id já existe antes de inserir
+    if "_id" in doc_data and collection.find_one({"_id": doc_data["_id"]}):
+        return False, f"Erro: Já existe um registro com o ID '{doc_data['_id']}' na coleção '{collection_name}'."
+
+    try:
+        collection.insert_one(doc_data)
+        return True, f"Registro com ID '{doc_data.get('_id', 'N/A')}' adicionado com sucesso na coleção '{collection_name}'!"
+    except Exception as e:
+        return False, f"Erro ao adicionar registro na coleção '{collection_name}': {e}"
+
 
 db = connect_to_mongo()
 users_collection = db["usuarios"]

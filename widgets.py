@@ -182,25 +182,6 @@ class __login__:
         st.session_state.setdefault('username', None)
         st.session_state.setdefault('matricula', None)
 
-        # garante JSON de auth
-        if not self.check_auth_json_file_exists('secret_auth.json'):
-            with open("secret_auth.json", "w") as f:
-                json.dump([], f)
-
-        _, selected = self.nav_sidebar()
-
-        if selected == 'Autenticação':
-            self.login_widget()
-        elif selected == 'Criar uma conta':
-            self.sign_up_widget()
-        elif selected == 'Usuários':
-            if st.session_state['LOGGED_IN']:
-                self.show_users_widget()
-            else:
-                st.warning("Faça login para ver os usuários.")
-
-        self.logout_widget()
-
         if self.hide_menu_bool:
             self.hide_menu()
         if self.hide_footer_bool:

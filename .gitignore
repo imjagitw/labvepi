@@ -4,3 +4,5 @@ __pycache__/
 .pytest_cache
 segredos.py
 segredos
+.venv/
+.streamlit/
