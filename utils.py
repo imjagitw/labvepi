@@ -1,5 +1,5 @@
 import streamlit as st
-import os
+import certifi
 import requests
 import bcrypt
 import regex as re
@@ -8,17 +8,35 @@ import bcrypt
 import re
 import requests
 
-def connect_to_mongo():
-    uri = os.environ.get("MONGO_URI")
+@st.cache_resource
+def get_mongo_client():
+    try:
+        uri = st.secrets["mongo"]["uri"]
+    except (KeyError, FileNotFoundError):
+        raise RuntimeError(
+            "MongoDB não configurado. "
+            "Adicione [mongo].uri aos Secrets do Streamlit."
+        )
 
     if not uri:
         raise RuntimeError(
-            "MONGO_URI não configurada. Configure a conexão com o MongoDB."
+            "O Secret [mongo].uri está vazio."
         )
 
+    client = MongoClient(
+        uri,
+        tls=True,
+        tlsCAFile=certifi.where(),
+        serverSelectionTimeoutMS=10000
+    )
+
+    client.admin.command("ping")
+
+    return client
+
+def connect_to_mongo():
     try:
-        client = MongoClient(uri, serverSelectionTimeoutMS=5000)
-        client.admin.command("ping")
+        client = get_mongo_client()
         return client["pibit_app"]
 
     except Exception as e:
