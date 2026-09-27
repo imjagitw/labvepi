@@ -48,7 +48,6 @@ def modal_confirmar_exame(exame_data):
             else:
                 st.error(message)
 
-
 def render_form_registro_exame():
     st.header("Novo Exame")
     with st.form("form_registro_exame"):
@@ -77,7 +76,6 @@ def render_form_registro_exame():
             linked_amostra_id = None
             if selected_amostra_str and " (ID: " in selected_amostra_str:
                 linked_amostra_id = selected_amostra_str.split(" (ID: ")[1][:-1]
-
         
         st.divider()
 
@@ -112,8 +110,7 @@ def render_form_registro_exame():
                 ' HEPATOZOON', 'RAIVA', 'Outro'
             ])
             err_tipo = st.empty()
-        
-
+     
         # Linha 2: Resultado, Responsável, Protocolo
         col_resp, col_kit, col_prot, col_res = st.columns([2, 2, 2, 2])
 
@@ -201,4 +198,3 @@ def render_form_registro_exame():
 
     if st.session_state.get('show_confirm_exame') and st.session_state.get('pending_exame_data'):
         modal_confirmar_exame(st.session_state['pending_exame_data'])
-

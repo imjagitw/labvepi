@@ -2,7 +2,6 @@ import streamlit as st
 from datetime import date
 from utils import connect_to_mongo, add_document
 
-
 @st.dialog("Informações da Amostra")
 def modal_confirmar_amostra(amostra_data):
 
@@ -57,7 +56,6 @@ def modal_confirmar_amostra(amostra_data):
                 st.rerun()
             else:
                 st.error(message)
-
 
 def render_form_registro_amostra():
     st.header("Nova Amostra")
@@ -288,4 +286,3 @@ def render_form_registro_amostra():
 
     if st.session_state.get('show_confirm_amostra') and st.session_state.get('pending_amostra_data'):
         modal_confirmar_amostra(st.session_state['pending_amostra_data'])
-

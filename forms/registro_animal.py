@@ -1,7 +1,6 @@
 import re
 import streamlit as st
-from utils import add_document
-
+from utils import add_document, connect_to_mongo
 
 def calcular_faixa_etaria(idade_str: str) -> str:
     """
@@ -53,7 +52,6 @@ def calcular_faixa_etaria(idade_str: str) -> str:
         return "Adulto"
     else:
         return "Senil"
-
 
 @st.dialog("Informações do Animal")
 def modal_confirmar_animal(animal_data):

@@ -48,7 +48,6 @@ def pagina_inicio():
         )
     st.markdown("<div style='margin-bottom: 25px;'></div>", unsafe_allow_html=True)
 
-
     # Conteúdo condicional abaixo do cabeçalho
     if not st.session_state['LOGGED_IN']:
         c1, c2, c3 = st.columns([1, 2, 1])
