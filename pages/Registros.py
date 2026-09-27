@@ -9,19 +9,7 @@ def exibir_campos(campos):
             st.markdown(f"**{campo}:** {valor}")
 
 # Conexão segura com MongoDB
-def connect_to_mongo():
-    uri = os.environ.get(
-        "MONGO_URI",
-        "mongodb+srv://emiliods79:uD5A2J4o38dpk0hX@cluster0.ufpae.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
-    )
-    try:
-        client = MongoClient(uri, serverSelectionTimeoutMS=5000)
-        db = client['pibit_app']
-        db.command("ping")
-        return db
-    except Exception as e:
-        st.error(f"Erro ao conectar ao banco de dados: {e}")
-        st.stop()
+from utils import connect_to_mongo
 
 db = connect_to_mongo()
 animais_col = db['animais']
@@ -253,7 +241,6 @@ with tab1:
                                 if cancelar:
                                     st.session_state[f"editando_{animal.get('_id')}"] = False
                                     st.rerun()
-
 
                     st.write("---")
                     st.subheader("Amostras Coletadas:")
@@ -498,4 +485,3 @@ with tab4:
                     if st.button("Excluir", key=f"d_{reagente['_id']}"):
                         reagentes_col.delete_one({"_id": reagente['_id']})
                         st.rerun()
-

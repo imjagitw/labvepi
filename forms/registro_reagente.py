@@ -1,6 +1,6 @@
 import streamlit as st
 from datetime import date
-from utils import add_document
+from utils import add_document, connect_to_mongo
 
 @st.dialog("Informações do Reagente")
 def modal_confirmar_reagente(reagente_data):

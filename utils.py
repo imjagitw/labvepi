@@ -9,11 +9,21 @@ import re
 import requests
 
 def connect_to_mongo():
-    uri = os.environ.get(
-        'MONGO_URI', "mongodb+srv://emiliods79:uD5A2J4o38dpk0hX@cluster0.ufpae.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0")
-    client = MongoClient(uri)
-    db = client['pibit_app']  # Ou já especificado na URI, se preferir.
-    return db
+    uri = os.environ.get("MONGO_URI")
+
+    if not uri:
+        raise RuntimeError(
+            "MONGO_URI não configurada. Configure a conexão com o MongoDB."
+        )
+
+    try:
+        client = MongoClient(uri, serverSelectionTimeoutMS=5000)
+        client.admin.command("ping")
+        return client["pibit_app"]
+
+    except Exception as e:
+        st.error(f"Erro ao conectar ao banco de dados: {e}")
+        st.stop()
 
 def add_document(collection_name, doc_data):
     db = connect_to_mongo()
