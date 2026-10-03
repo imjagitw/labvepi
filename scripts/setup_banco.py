@@ -34,7 +34,7 @@ INDICES = [
     ("animais", [("hvu", ASCENDING)], {"sparse": True}),
     ("reagentes", [("data_validade", ASCENDING)], {}),
     ("usuarios", [("username", ASCENDING)], {"unique": True}),
-    ("usuarios", [("email", ASCENDING)], {"unique": True}),
+    ("usuarios", [("email", ASCENDING)], {}),
 ]
 for col, chave, opt in INDICES:
     print(f"- índice {col} {chave} {opt}")
