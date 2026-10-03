@@ -2,6 +2,7 @@ import streamlit as st
 from datetime import datetime, timedelta
 from pymongo import MongoClient
 from widgets import __login__
+from utils import connect_to_mongo
 
 # ---------------------------------------------------------
 # 1. Configurações Globais
@@ -20,14 +21,6 @@ __login__obj = __login__(
     width=200, height=250,
     logout_button_name='Logout'
 )
-
-def connect_to_mongo():
-    uri = st.secrets.get("mongo", {}).get(
-        "uri", 
-        "mongodb+srv://emiliods79:uD5A2J4o38dpk0hX@cluster0.ufpae.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
-    )
-    client = MongoClient(uri)
-    return client['pibit_app']
 
 # ---------------------------------------------------------
 # 2. Definição da Página Inicial (Cabeçalho no Topo + Abas Abaixo)
