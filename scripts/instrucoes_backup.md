@@ -36,10 +36,10 @@ Para exportar todas as coleções do banco `pibit_app` para um arquivo único co
 mongodump \
   --uri="URI_DO_BANCO_ORIGEM" \
   --db="pibit_app" \
-  --archive="backup/pibit_app.archive"
+  --archive="scripts/resultados/pibit_app.archive"
 ```
 
-> 💡 **Nota:** Se você já estiver executando o comando a partir do diretório `backup/`, ajuste o caminho para `--archive="pibit_app.archive"`.
+> 💡 **Nota:** Se você já estiver executando o comando a partir do diretório `scripts/resultados/`, ajuste o caminho para `--archive="pibit_app.archive"`.
 
 ### Gerar com compressão adicional (Gzip)
 Recomendado para otimizar o espaço em disco caso a base cresça:
@@ -47,7 +47,7 @@ Recomendado para otimizar o espaço em disco caso a base cresça:
 mongodump \
   --uri="URI_DO_BANCO_ORIGEM" \
   --db="pibit_app" \
-  --archive="backup/pibit_app.archive" \
+  --archive="scripts/resultados/pibit_app.archive" \
   --gzip
 ```
 
@@ -60,7 +60,7 @@ Para restaurar as coleções contidas no arquivo para uma nova instância do Mon
 ```bash
 mongorestore \
   --uri="SUA_NOVA_URI" \
-  --archive="backup/pibit_app.archive"
+  --archive="scripts/resultados/pibit_app.archive"
 ```
 
 > ⚠️ Caso tenha utilizado a flag `--gzip` na geração do backup, lembre-se de adicionar `--gzip` também no comando de restauração.
@@ -70,7 +70,7 @@ Por padrão, o `mongorestore` não deleta documentos já existentes na base de d
 ```bash
 mongorestore \
   --uri="SUA_NOVA_URI" \
-  --archive="backup/pibit_app.archive" \
+  --archive="scripts/resultados/pibit_app.archive" \
   --drop
 ```
 
@@ -79,7 +79,7 @@ Caso queira restaurar os dados em um banco de desenvolvimento/teste (ex.: `pibit
 ```bash
 mongorestore \
   --uri="SUA_NOVA_URI" \
-  --archive="backup/pibit_app.archive" \
+  --archive="scripts/resultados/pibit_app.archive" \
   --nsFrom="pibit_app.*" \
   --nsTo="pibit_app_dev.*"
 ```
@@ -93,10 +93,10 @@ mongorestore \
    export MONGO_URI="mongodb+srv://<usuario>:<senha>@cluster.mongodb.net"
    
    # Gerar backup
-   mongodump --uri="$MONGO_URI" --db="pibit_app" --archive="backup/pibit_app.archive"
+   mongodump --uri="$MONGO_URI" --db="pibit_app" --archive="scripts/resultados/pibit_app.archive"
    
    # Restaurar backup
-   mongorestore --uri="$MONGO_URI" --archive="backup/pibit_app.archive"
+   mongorestore --uri="$MONGO_URI" --archive="scripts/resultados/pibit_app.archive"
    ```
 
 2. **Atenção aos arquivos gerados:**

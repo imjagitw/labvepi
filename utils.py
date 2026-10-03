@@ -37,7 +37,15 @@ def get_mongo_client():
 def connect_to_mongo():
     try:
         client = get_mongo_client()
-        return client["pibit_app"]
+        # Checa se existe uma flag de ambiente de desenvolvimento nos secrets
+        is_dev = st.secrets.get("ambiente") == "dev"
+        
+        if is_dev:
+            nome_db = "pibit_app_dev"
+            st.sidebar.warning("⚠️ Rodando em ambiente de TESTE (DEV)")
+        else:
+            nome_db = "pibit_app" # Força produção se não for expressamente dev
+        return client[nome_db]
 
     except Exception as e:
         st.error(f"Erro ao conectar ao banco de dados: {e}")
