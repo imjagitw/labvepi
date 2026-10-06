@@ -9,7 +9,7 @@ def exibir_campos(campos):
             st.markdown(f"**{campo}:** {valor}")
 
 # Conexão segura com MongoDB
-from utils import connect_to_mongo
+from utils import connect_to_mongo, normalize_document_types, get_reagente_quantidade
 
 db = connect_to_mongo()
 animais_col = db['animais']
@@ -103,7 +103,7 @@ with tab1:
     animais = carregar_animais_mongo()
     amostras = carregar_amostras_mongo()
 
-    # Filtro de busca incluindo o campo id_hvu
+    # Filtro de busca incluindo o campo hvu (suporta hvu e id_hvu legado)
     if busca:
         termo = busca.lower()
         animais = [
@@ -111,7 +111,7 @@ with tab1:
             if termo in str(a.get('nome_comum', '')).lower()
             or termo in str(a.get('nome_cientifico', '')).lower()
             or termo in str(a.get('microchip', '')).lower()
-            or termo in str(a.get('id_hvu', '')).lower()
+            or termo in str(a.get('id_hvu') or a.get('hvu', '')).lower()
             or termo in str(a.get('_id', '')).lower()
         ]
 
@@ -144,8 +144,9 @@ with tab1:
 
         with list_container_animais:
             for animal in animais_pagina:
-                # Título do expander exibindo ID HVU para facilitar identificação
-                label_hvu = f" | HVU: {animal.get('id_hvu')}" if animal.get('id_hvu') else ""
+                # Título do expander exibindo ID HVU para facilitar identificação (suporta id_hvu e hvu)
+                val_hvu = animal.get('id_hvu') or animal.get('hvu')
+                label_hvu = f" | HVU: {val_hvu}" if val_hvu else ""
                 with st.expander(f"{animal.get('nome_comum', 'Sem nome')} ({animal.get('_id')}){label_hvu}", expanded=False):
                     display_document(animal, title="Dados do Animal")
                     # Apenas Professores podem editar animais
@@ -160,14 +161,14 @@ with tab1:
 
                                 col1, col2 = st.columns(2)
                                 with col1:
-                                    novo_nome_comum = st.text_input("Nome Comum", value=animal.get("nome_comum", ""))
-                                    novo_nome_cientifico = st.text_input("Nome Científico", value=animal.get("nome_cientifico", ""))
-                                    novo_id_projeto = st.text_input("ID do Projeto", value=animal.get("animal_id_projeto", ""))
-                                    novo_hvu = st.text_input("ID do HVU", value=animal.get("hvu", ""))
-                                    novo_microchip = st.text_input("Microchip", value=animal.get("microchip", ""))
-                                    novo_local_origem = st.text_input("Local de Origem", value=animal.get("local_origem", ""))
-                                    nova_idade = st.text_input("Idade", value=animal.get("idade", ""))
-                                    nova_suspeita = st.text_input("Suspeita Clínica", value=animal.get("suspeita_clinica", ""))
+                                    novo_nome_comum = st.text_input("Nome Comum", value=str(animal.get("nome_comum") or ""))
+                                    novo_nome_cientifico = st.text_input("Nome Científico", value=str(animal.get("nome_cientifico") or ""))
+                                    novo_id_projeto = st.text_input("ID do Projeto", value=str(animal.get("animal_id_projeto") or ""))
+                                    novo_hvu = st.text_input("ID do HVU", value=str(animal.get("id_hvu") or animal.get("hvu") or ""))
+                                    novo_microchip = st.text_input("Microchip", value=str(animal.get("microchip") if animal.get("microchip") is not None else ""))
+                                    novo_local_origem = st.text_input("Local de Origem", value=str(animal.get("local_origem") or ""))
+                                    nova_idade = st.text_input("Idade", value=str(animal.get("idade") or ""))
+                                    nova_suspeita = st.text_input("Suspeita Clínica", value=str(animal.get("suspeita_clinica") or ""))
 
                                 with col2:
                                     sexo_opts = ["", "Macho", "Fêmea", "Desconhecido"]
@@ -205,7 +206,7 @@ with tab1:
                                     novo_peso = st.number_input("Peso (kg)", min_value=0.0, format="%.2f", step=0.01,
                                         value=float(animal.get("peso", 0.0)) if isinstance(animal.get("peso"), (int, float)) else 0.0)
 
-                                novas_obs = st.text_area("Observações", value=animal.get("observacoes", ""))
+                                novas_obs = st.text_area("Observações", value=str(animal.get("observacoes") if animal.get("observacoes") is not None else ""))
 
                                 col_s, col_c = st.columns(2)
                                 with col_s:
@@ -218,7 +219,7 @@ with tab1:
                                         "nome_comum": novo_nome_comum,
                                         "nome_cientifico": novo_nome_cientifico,
                                         "animal_id_projeto": novo_id_projeto,
-                                        "hvu": novo_hvu,
+                                        "id_hvu": novo_hvu,
                                         "microchip": novo_microchip,
                                         "local_origem": novo_local_origem,
                                         "idade": nova_idade,
@@ -233,6 +234,7 @@ with tab1:
                                         "observacoes": novas_obs,
                                     }
                                     update_data = {k: v for k, v in update_data.items() if v not in (None, "", [])}
+                                    update_data = normalize_document_types(update_data)
                                     animais_col.update_one({"_id": animal["_id"]}, {"$set": update_data})
                                     st.success("✅ Animal atualizado com sucesso!")
                                     st.session_state[f"editando_{animal.get('_id')}"] = False
@@ -337,7 +339,7 @@ with tab2:
                     st.markdown("---")
                     st.subheader("Disponibilidade")
                     
-                    current_status = amostra.get('status_amostra') or "Não informado"
+                    current_status = amostra.get('status_amostra') or amostra.get('status') or "Não informado"
                     current_disponivel = bool(amostra.get('disponivel'))
                     current_local = amostra.get('destino_amostra') or ""
 
@@ -478,9 +480,13 @@ with tab4:
             for reagente in reagentes_pagina:
                 with st.expander(f"Reagente: {reagente.get('nome')}"):
                     display_document(reagente)
-                    nova_qtd = st.number_input("Qtd", value=int(reagente.get('quantidade', 0)), key=f"q_{reagente['_id']}")
+                    qtd_atual = get_reagente_quantidade(reagente)
+                    nova_qtd = st.number_input("Qtd (Unidade)", value=int(qtd_atual), key=f"q_{reagente['_id']}")
                     if st.button("Atualizar Qtd", key=f"b_{reagente['_id']}"):
-                        reagentes_col.update_one({"_id": reagente['_id']}, {"$set": {"quantidade": nova_qtd}})
+                        reagentes_col.update_one(
+                            {"_id": reagente['_id']},
+                            {"$set": {"quantidade": nova_qtd, "quantidade_unidade": nova_qtd}}
+                        )
                         st.success("Ok!")
                     if st.button("Excluir", key=f"d_{reagente['_id']}"):
                         reagentes_col.delete_one({"_id": reagente['_id']})

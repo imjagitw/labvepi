@@ -15,10 +15,28 @@ from pymongo import MongoClient
 import certifi
 
 uri = os.environ.get("MONGO_URI")
+nome_db = os.environ.get("MONGO_DB")
+
+if not uri:
+    try:
+        secrets_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".streamlit", "secrets.toml")
+        if os.path.exists(secrets_path):
+            with open(secrets_path, "r", encoding="utf-8") as f:
+                for line in f:
+                    if line.strip().startswith("uri"):
+                        uri = line.split("=", 1)[1].strip().strip('"').strip("'")
+                    elif line.strip().startswith("db") and not nome_db:
+                        nome_db = line.split("=", 1)[1].strip().strip('"').strip("'")
+    except Exception:
+        pass
+
+if not nome_db:
+    nome_db = "pibit_app_dev"
+
 if not uri:
     sys.exit("Defina a variável de ambiente MONGO_URI.")
-db = MongoClient(uri, tlsCAFile=certifi.where(), serverSelectionTimeoutMS=10000)[
-    os.environ.get("MONGO_DB", "pibit_app")]
+
+db = MongoClient(uri, tlsCAFile=certifi.where(), serverSelectionTimeoutMS=10000)[nome_db]
 
 tipo = lambda v: type(v).__name__
 vazio = lambda v: v is None or v == "" or v == []
@@ -124,7 +142,15 @@ rel["divergencias"] = {
         sum(1 for e in exames if "nome" in e and "amostra_id" not in e),
     "reagentes com _id ObjectId (ID deixado em branco)": sum(1 for r in reagentes if tipo(r["_id"]) == "ObjectId"),
     "exames com _id ObjectId (ID deixado em branco)": sum(1 for e in exames if tipo(e["_id"]) == "ObjectId"),
+    "registros com campos 'unnamed*' (sujeiras de importação)": sum(
+        sum(1 for d in db[c].find() if any(str(k).lower().startswith("unnamed") for k in d.keys()))
+        for c in ["amostras", "animais", "exames", "reagentes"]
+    ),
     "reagentes: tipos de data_validade": dict(Counter(tipo(r.get("data_validade")) for r in reagentes)),
+    "animais: tipos de microchip": dict(Counter(tipo(a.get("microchip")) for a in animais_full if "microchip" in a and not vazio(a["microchip"]))),
+    "animais: tipos de hvu": dict(Counter(tipo(a.get("hvu")) for a in animais_full if "hvu" in a and not vazio(a["hvu"]))),
+    "animais: tipos de id_hvu": dict(Counter(tipo(a.get("id_hvu")) for a in animais_full if "id_hvu" in a and not vazio(a["id_hvu"]))),
+    "animais: tipos de observacoes": dict(Counter(tipo(a.get("observacoes")) for a in animais_full if "observacoes" in a and not vazio(a["observacoes"]))),
 }
 for k, v in rel["divergencias"].items():
     print(f"- {k}: {v}")

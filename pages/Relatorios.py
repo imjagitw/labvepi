@@ -71,12 +71,21 @@ if not df_animais.empty and "sexo_normalizado" in df_animais.columns:
                        title="Distribuição dos Animais por Sexo")
     st.plotly_chart(fig, use_container_width=True)
 
-# --- Gráfico: Amostras por Método de Coleta ---
+# --- Gráfico: Amostras por Método de Coleta e Status ---
 df_amostras = pd.DataFrame(amostras)
-if not df_amostras.empty and "metodo_coleta" in df_amostras.columns:
-    fig2 = px.histogram(df_amostras, x="metodo_coleta",
-                        title="Amostras por Método de Coleta")
-    st.plotly_chart(fig2, use_container_width=True)
+if not df_amostras.empty:
+    col_g1, col_g2 = st.columns(2)
+    with col_g1:
+        if "metodo_coleta" in df_amostras.columns:
+            fig2 = px.histogram(df_amostras, x="metodo_coleta",
+                                title="Amostras por Método de Coleta")
+            st.plotly_chart(fig2, use_container_width=True)
+    with col_g2:
+        col_status = "status_amostra" if "status_amostra" in df_amostras.columns else ("status" if "status" in df_amostras.columns else None)
+        if col_status:
+            fig_st = px.histogram(df_amostras, x=col_status,
+                                  title="Amostras por Status (status_amostra)")
+            st.plotly_chart(fig_st, use_container_width=True)
 
 # --- Gráfico: Exames por Tipo ---
 df_exames = pd.DataFrame(exames)
@@ -84,11 +93,17 @@ if not df_exames.empty and "tipo_exame" in df_exames.columns:
     fig3 = px.histogram(df_exames, x="tipo_exame", title="Exames por Tipo")
     st.plotly_chart(fig3, use_container_width=True)
 
-# --- Gráfico: Reagentes por Tipo ---
+# --- Gráfico: Reagentes (Estoque em Unidades) ---
 df_reagentes = pd.DataFrame(reagentes)
-if not df_reagentes.empty and "tipo" in df_reagentes.columns:
-    fig4 = px.histogram(df_reagentes, x="tipo", title="Reagentes por Tipo")
-    st.plotly_chart(fig4, use_container_width=True)
+if not df_reagentes.empty:
+    if "quantidade_unidade" in df_reagentes.columns or "quantidade" in df_reagentes.columns:
+        df_reagentes["qtd_unidade"] = df_reagentes.apply(
+            lambda r: r.get("quantidade_unidade") if pd.notna(r.get("quantidade_unidade")) else r.get("quantidade", 0),
+            axis=1
+        )
+        if "nome" in df_reagentes.columns:
+            fig4 = px.bar(df_reagentes, x="nome", y="qtd_unidade", title="Estoque de Reagentes (Unidades)")
+            st.plotly_chart(fig4, use_container_width=True)
 
 # --- Tabelas detalhadas (opcional) ---
 with st.expander("Ver tabelas detalhadas"):

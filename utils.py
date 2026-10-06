@@ -51,9 +51,54 @@ def connect_to_mongo():
         st.error(f"Erro ao conectar ao banco de dados: {e}")
         st.stop()
 
+FIELDS_NUMERICOS = {'peso', 'quantidade', 'quantidade_unidade', 'quantidade_volume', 'latitude', 'longitude'}
+
+def get_reagente_quantidade(doc: dict) -> float:
+    """
+    Retorna a quantidade de unidades do reagente priorizando 'quantidade_unidade'
+    e utilizando 'quantidade' como fallback para dados legados.
+    """
+    if not isinstance(doc, dict):
+        return 0.0
+    val = doc.get('quantidade_unidade')
+    if val is None:
+        val = doc.get('quantidade', 0)
+    try:
+        return float(val) if val is not None else 0.0
+    except (ValueError, TypeError):
+        return 0.0
+
+def normalize_document_types(doc: dict) -> dict:
+    """
+    Garante que todos os campos identificadores, códigos e textos
+    sejam gravados estritamente como string no MongoDB, evitando
+    inconsistências de tipo (ex: int vs Int64 vs str vs float).
+    Campos explicitamente numéricos (peso, quantidade, etc.) são preservados.
+    """
+    if not isinstance(doc, dict):
+        return doc
+
+    normalized = {}
+    for k, v in doc.items():
+        if v is None:
+            continue
+        if k in FIELDS_NUMERICOS or isinstance(v, (bool, dict, list)):
+            normalized[k] = v
+        elif isinstance(v, float):
+            normalized[k] = str(int(v)) if v.is_integer() else str(v)
+        elif isinstance(v, int):
+            normalized[k] = str(v)
+        elif isinstance(v, str):
+            normalized[k] = v.strip()
+        else:
+            normalized[k] = str(v).strip()
+    return normalized
+
 def add_document(collection_name, doc_data):
     db = connect_to_mongo()
     collection = db[collection_name]
+
+    doc_data = normalize_document_types(doc_data)
 
     # Verifica se o _id já existe antes de inserir
     if "_id" in doc_data and collection.find_one({"_id": doc_data["_id"]}):

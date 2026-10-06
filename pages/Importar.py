@@ -9,6 +9,19 @@ from utils import connect_to_mongo
 
 db = connect_to_mongo()
 
+FIELDS_NUMERICOS = {'peso', 'quantidade', 'quantidade_unidade', 'quantidade_volume', 'latitude', 'longitude'}
+
+def formatar_valor_importacao(k, v):
+    if pd.isnull(v) or v == "":
+        return None
+    if isinstance(v, (pd.Timestamp, datetime.date)):
+        return v.strftime('%Y-%m-%d')
+    if k in FIELDS_NUMERICOS:
+        return v
+    if isinstance(v, float):
+        return str(int(v)) if v.is_integer() else str(v)
+    return str(v).strip()
+
 st.title("Importação de dados para o Sistema")
 
 # Seleção do tipo de planilha para definir a coleção
@@ -21,8 +34,8 @@ tipo_planilha = st.radio(
 if tipo_planilha == "Importação Unificada":
     st.info("""
     Para importação unificada, sua planilha deve conter as seguintes colunas:
-    - Colunas do Animal: animal_id, nome_comum, nome_cientifico, sexo, peso, hvu, microchip, orgao, status, funcao
-    - Colunas da Amostra: amostra_id, metodo_coleta, data_coleta, local_coleta
+    - Colunas do Animal: animal_id, nome_comum, nome_cientifico, sexo, peso, id_hvu, microchip, orgao, status, funcao
+    - Colunas da Amostra: amostra_id, metodo_coleta, data_coleta, local_coleta, status_amostra
     - Colunas do Exame: exame_id, tipo_exame, teste_laboratorial, data_realizacao, resultado_detalhado
     """)
 
@@ -38,6 +51,8 @@ if tipo_planilha == "Importação Unificada":
                 df = pd.read_csv(uploaded_file)
             else:
                 df = pd.read_excel(uploaded_file)
+            # Remove colunas 'unnamed' resultantes de cabeçalhos vazios/sujeira
+            df = df.loc[:, ~df.columns.astype(str).str.lower().str.startswith('unnamed')]
 
             st.subheader("Visualização dos Dados")
             st.dataframe(df.head())
@@ -49,8 +64,9 @@ if tipo_planilha == "Importação Unificada":
                 animais_df = animais_df.rename(columns={
                     'animal_id': '_id',
                     'animal_nome_comum': 'nome_comum',
-                    'animal_nome_cientifico': 'nome_cientifico'
-                    # adicione outros campos conforme necessário
+                    'animal_nome_cientifico': 'nome_cientifico',
+                    'animal_hvu': 'id_hvu',
+                    'animal_id_hvu': 'id_hvu',
                 })
 
                 # Processar amostras
@@ -59,8 +75,9 @@ if tipo_planilha == "Importação Unificada":
                 amostras_df = amostras_df.rename(columns={
                     'amostra_id': '_id',
                     'amostra_metodo_coleta': 'metodo_coleta',
-                    'amostra_data_coleta': 'data_coleta'
-                    # adicione outros campos conforme necessário
+                    'amostra_data_coleta': 'data_coleta',
+                    'amostra_status': 'status_amostra',
+                    'amostra_status_amostra': 'status_amostra',
                 })
 
                 # Processar exames
@@ -73,17 +90,17 @@ if tipo_planilha == "Importação Unificada":
                     # adicione outros campos conforme necessário
                 })
 
-                # Converter para dicionários e remover campos vazios
+                # Converter para dicionários, normalizar tipos e remover campos vazios
                 animais = [
-                    {k: v for k, v in record.items() if pd.notnull(v) and v != ""}
+                    {k: fmt_v for k, v in record.items() if (fmt_v := formatar_valor_importacao(k, v)) is not None}
                     for record in animais_df.to_dict('records')
                 ]
                 amostras = [
-                    {k: v for k, v in record.items() if pd.notnull(v) and v != ""}
+                    {k: fmt_v for k, v in record.items() if (fmt_v := formatar_valor_importacao(k, v)) is not None}
                     for record in amostras_df.to_dict('records')
                 ]
                 exames = [
-                    {k: v for k, v in record.items() if pd.notnull(v) and v != ""}
+                    {k: fmt_v for k, v in record.items() if (fmt_v := formatar_valor_importacao(k, v)) is not None}
                     for record in exames_df.to_dict('records')
                 ]
 
@@ -127,6 +144,8 @@ else:
                 df = pd.read_csv(uploaded_file)
             else:
                 df = pd.read_excel(uploaded_file)
+            # Remove colunas 'unnamed' resultantes de cabeçalhos vazios/sujeira
+            df = df.loc[:, ~df.columns.astype(str).str.lower().str.startswith('unnamed')]
 
             # Padronização dos nomes das colunas
             df.columns = [col.strip().lower().replace(" ", "_")
@@ -144,6 +163,8 @@ else:
                     "resultado_do_exame": "resultado_exame",
                     'amostra_kit': 'kit_utilizado',
                     "observacoes_da_amostra": "observacoes",
+                    "status": "status_amostra",
+                    "status_da_amostra": "status_amostra",
                 }
             elif tipo_planilha == "Animais":
                 renomear = {
@@ -151,7 +172,8 @@ else:
                     "nome_cientifico": "nome_cientifico",
                     "sexo": "sexo",
                     "peso": "peso",
-                    "hvu": "hvu",
+                    "hvu": "id_hvu",
+                    "id_hvu": "id_hvu",
                     "microchip": "microchip",
                     "orgao": "orgao",
                     "status": "status",
@@ -182,6 +204,8 @@ else:
                     "numero_do_lote": "numero_lote",
                     "data_de_validade": "data_validade",
                     "quantidade": "quantidade",
+                    "quantidade_unidade": "quantidade_unidade",
+                    "quantidade_volume": "quantidade_volume",
                     "unidade": "unidade",
                     "local_de_armazenamento": "local_armazenamento",
                     'etapa': 'etapa',
@@ -219,12 +243,23 @@ else:
                 "Tamanho do lote (chunk) para inserção", min_value=50, max_value=1000, value=200, step=50)
 
             if st.button("Importar dados"):
-                # normaliza e prepara registros
-                dados = [
-                    {k: (v.strftime('%Y-%m-%d') if isinstance(v, (pd.Timestamp, datetime.date)) else v)
-                     for k, v in row.items() if pd.notnull(v) and v != ""}
-                    for row in df.to_dict(orient="records")
-                ]
+                # normaliza e prepara registros (descarte de 'unnamed' e padronização de tipos)
+                dados = []
+                for row in df.to_dict(orient="records"):
+                    rec = {}
+                    for k, v in row.items():
+                        if str(k).lower().startswith("unnamed"):
+                            continue
+                        fmt_v = formatar_valor_importacao(k, v)
+                        if fmt_v is not None:
+                            rec[k] = fmt_v
+                    if rec:
+                        if tipo_planilha == "Reagentes":
+                            qtd_val = rec.get("quantidade_unidade") if rec.get("quantidade_unidade") is not None else rec.get("quantidade")
+                            if qtd_val is not None:
+                                rec["quantidade_unidade"] = qtd_val
+                                rec["quantidade"] = qtd_val
+                        dados.append(rec)
 
                 # ids existentes no banco
                 ids = [d.get('_id') for d in dados if d.get('_id') is not None]
