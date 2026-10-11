@@ -83,7 +83,7 @@ class __login__:
             password_sign_up = st.text_input("Senha *", type='password')
             matricula_sign_up = st.selectbox(
                 "Tipo de Usuário *",
-                ["Bolsista UFPI", "Bolsista Externo",
+                ["Bolsista PIBIC", "Bolsista PIBIT", "Bolsista Externo",
                     "Mestrando", "Doutorando", "Professor"]
             )
 

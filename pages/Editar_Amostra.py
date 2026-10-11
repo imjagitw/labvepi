@@ -5,7 +5,7 @@ import os
 import pandas as pd
 
 # Conexão ao MongoDB Atlas
-from utils import connect_to_mongo
+from utils import connect_to_mongo, normalize_document_types
 
 # Conecta ao banco e seleciona a coleção de amostras
 db = connect_to_mongo()
@@ -52,12 +52,12 @@ st.subheader("Editar dados da Amostra")
 with st.form("form_editar_amostra"):
     update_data = {}
 
-    # Exemplo de edição de status
-    status_atual = sample.get("status", "Pendente")
-    opcoes_status = ["Pendente", "Transferida", "Recebida"]
+    # Edição do status da amostra (adotando status_amostra)
+    status_atual = sample.get("status_amostra") or sample.get("status", "Disponível")
+    opcoes_status = ["Disponível", "Reservada", "Em uso", "Consumida", "Perdida", "Pendente", "Transferida", "Recebida"]
     idx = opcoes_status.index(status_atual) if status_atual in opcoes_status else 0
-    novo_status = st.selectbox("Status", options=opcoes_status, index=idx)
-    update_data["status"] = novo_status
+    novo_status = st.selectbox("Status da Amostra", options=opcoes_status, index=idx)
+    update_data["status_amostra"] = novo_status
 
     # Exemplo de edição de laboratório
     lab_atual = sample.get("laboratorio", "")
@@ -98,6 +98,7 @@ with st.form("form_editar_amostra"):
 
     submit = st.form_submit_button("Salvar alterações")
     if submit:
+        update_data = normalize_document_types(update_data)
         result = samples_col.update_one(
             { "_id": ObjectId(sample_id) },
             { "$set": update_data }

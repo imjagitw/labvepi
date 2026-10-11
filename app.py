@@ -2,7 +2,7 @@ import streamlit as st
 from datetime import datetime, timedelta
 from pymongo import MongoClient
 from widgets import __login__
-from utils import connect_to_mongo
+from utils import connect_to_mongo, get_reagente_quantidade
 
 # ---------------------------------------------------------
 # 1. Configurações Globais
@@ -118,8 +118,12 @@ if st.session_state['LOGGED_IN']:
                 db = connect_to_mongo()
                 reagentes_col = db['reagentes']
 
-                # Consulta de baixo estoque
-                reagentes_baixo_estoque = list(reagentes_col.find({"quantidade": {"$lte": 2}}))
+                # Consulta de baixo estoque (prioriza 'quantidade_unidade' e aceita 'quantidade' legado)
+                todos_reagentes = list(reagentes_col.find())
+                reagentes_baixo_estoque = [
+                    r for r in todos_reagentes
+                    if get_reagente_quantidade(r) <= 2
+                ]
 
                 # Consulta de validade (próximos 30 dias)
                 data_hoje = datetime.now().strftime('%Y-%m-%d')
@@ -151,7 +155,9 @@ if st.session_state['LOGGED_IN']:
                             unsafe_allow_html=True
                         )
                         for r in reagentes_baixo_estoque:
-                            st.caption(f"• **{r.get('nome', 'Sem nome')}**: {r.get('quantidade', 0)} {r.get('unidade', '')} ({r.get('local_armazenamento', 'Local N/D')})")
+                            qtd = get_reagente_quantidade(r)
+                            vol_info = f" | {r.get('quantidade_volume')} vol" if r.get('quantidade_volume') else ""
+                            st.caption(f"• **{r.get('nome', 'Sem nome')}**: {qtd} un{vol_info} ({r.get('local_armazenamento', 'Local N/D')})")
 
                     if reagentes_vencendo:
                         st.markdown(

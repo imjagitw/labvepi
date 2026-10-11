@@ -6,4 +6,5 @@ segredos.py
 segredos
 .venv/
 .streamlit/
-backup/pibit_app.archive
+scripts/docs
+scripts/resultados

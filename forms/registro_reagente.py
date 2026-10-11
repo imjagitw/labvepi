@@ -154,6 +154,8 @@ def render_form_registro_reagente():
                     "marca": reagente_marca,
                     "data_validade": str(reagente_validade),
                     "quantidade_unidade": reagente_quantidade_unidade,
+                    "quantidade_volume": reagente_quantidade_volume,
+                    "quantidade": reagente_quantidade_unidade,
                     "local_armazenamento": reagente_local_armazenamento,
                     'etapa': reagente_etapa,
                     "observacoes": reagente_observacoes

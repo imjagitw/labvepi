@@ -160,7 +160,13 @@ def render_form_registro_amostra():
 
         # --- 📊 DISPONIBILIDADE E ANÁLISES ---
         st.subheader(":material/inventory: Disponibilidade & Análises")
-        col_disp, col_seq, col_dna, col_rna = st.columns([2, 2, 2, 2])
+        col_status_ams, col_disp, col_seq, col_dna, col_rna = st.columns([2, 2, 2, 2, 2])
+
+        with col_status_ams:
+            amostra_status = st.selectbox(
+                "Status da Amostra",
+                ["Disponível", "Reservada", "Em uso", "Consumida", "Perdida"]
+            )
 
         with col_disp:
             amostra_disponibilidade = st.selectbox(
@@ -272,6 +278,7 @@ def render_form_registro_amostra():
                     "latitude": amostra_latitude,
                     "kit_utilizado": amostra_kit,
                     "caixa": amostra_caixa,
+                    "status_amostra": amostra_status,
                     "sangue_disponivel": amostra_disponibilidade,
                     "dna_disponivel": amostra_dna,
                     "rna_disponivel": amostra_rna,
