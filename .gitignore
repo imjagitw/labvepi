@@ -1,10 +1,24 @@
-env
-.env
+# Python
 __pycache__/
-.pytest_cache
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+
+# Ambientes virtuais
+.venv/
+*/.venv/
+env/
+*/env/
+
+# Segredos e variáveis de ambiente
+.env
+*/.env
 segredos.py
 segredos
-.venv/
-.streamlit/
-scripts/docs
-scripts/resultados
+streamlit/.streamlit/
+secrets.toml
+
+# Saídas e relatórios locais
+streamlit/scripts/docs/
+streamlit/scripts/resultados/

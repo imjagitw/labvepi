@@ -7,8 +7,12 @@ from utils import connect_to_mongo, get_reagente_quantidade
 # ---------------------------------------------------------
 # 1. Configurações Globais
 # ---------------------------------------------------------
+from pathlib import Path
+
+LOGO_PATH = str(Path(__file__).parent / "logo.png")
+
 st.set_page_config(page_title="LABVEPI - UFPI", layout="wide", page_icon="🐾")
-st.logo("logo.png")
+st.logo(LOGO_PATH)
 
 # Inicialização segura do estado da sessão
 st.session_state.setdefault('LOGGED_IN', False)
@@ -29,7 +33,7 @@ def pagina_inicio():
     # Logo e cabeçalho sempre no topo da área principal
     col1, col2 = st.columns([1, 4], vertical_alignment="center")
     with col1:
-        st.image("logo.png", width=150)
+        st.image(LOGO_PATH, width=150)
     with col2:
         st.markdown(
             """
