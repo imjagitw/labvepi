@@ -6,4 +6,5 @@ segredos.py
 segredos
 .venv/
 .streamlit/
+scripts/docs
 scripts/resultados

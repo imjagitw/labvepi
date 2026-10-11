@@ -1,55 +1,33 @@
 """
-Issue 1 - Auditoria SOMENTE LEITURA do MongoDB (pibit_app).
+Issue 1 - Auditoria SOMENTE LEITURA do MongoDB (pibit_app / pibit_app_dev).
 Não imprime dados pessoais: mostra apenas nomes de campos, tipos e contagens.
 
 Uso:
     export MONGO_URI="mongodb+srv://..."      # conta somente leitura, de preferência
-    export MONGO_DB="pibit_app"               # ou pibit_app_dev (restauração do backup)
-    python files/auditar_banco.py
-Saída: console + files/relatorio_auditoria.json
+    export MONGO_DB="pibit_app_dev"           # ou pibit_app (banco padrão é pibit_app_dev)
+    python scripts/auditar_banco.py
+Saída: console + scripts/resultados/relatorio_auditoria_<data_hora>.json
 """
 import os, sys, json
 from datetime import datetime
 from collections import Counter
-from pymongo import MongoClient
-import certifi
 
-uri = os.environ.get("MONGO_URI")
-nome_db = os.environ.get("MONGO_DB")
+from _conexao import conectar
 
-if not uri:
-    try:
-        secrets_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".streamlit", "secrets.toml")
-        if os.path.exists(secrets_path):
-            with open(secrets_path, "r", encoding="utf-8") as f:
-                for line in f:
-                    if line.strip().startswith("uri"):
-                        uri = line.split("=", 1)[1].strip().strip('"').strip("'")
-                    elif line.strip().startswith("db") and not nome_db:
-                        nome_db = line.split("=", 1)[1].strip().strip('"').strip("'")
-    except Exception:
-        pass
-
-if not nome_db:
-    nome_db = "pibit_app_dev"
-
-if not uri:
-    sys.exit("Defina a variável de ambiente MONGO_URI.")
-
-db = MongoClient(uri, tlsCAFile=certifi.where(), serverSelectionTimeoutMS=10000)[nome_db]
+db, nome_db = conectar()
+print(f"Banco auditado: {nome_db} (somente leitura)\n")
 
 tipo = lambda v: type(v).__name__
 vazio = lambda v: v is None or v == "" or v == []
 rel = {}
 
-# Campos obrigatórios segundo os formulários atuais (forms/*.py)
+# Campos obrigatórios segundo os formulários atuais e regras do laboratório
 OBRIG = {
     "animais": ["classe", "nome_comum", "nome_cientifico", "sexo", "peso", "orgao",
                 "status", "funcao", "local_origem", "faixa_etaria"],
-    "amostras": ["animal_id", "local_coleta_amostra", "data_coleta_amostra", "nome_coletor",
+    "amostras": ["animal_id", "status_amostra", "local_coleta_amostra", "data_coleta_amostra", "nome_coletor",
                  "metodo_coleta", "condicao_amostra", "fase_amostra", "destino_amostra",
-                 "kit_utilizado", "caixa", "sangue_disponivel", "dna_disponivel",
-                 "rna_disponivel", "sequenciamento"],
+                 "kit_utilizado", "caixa"],
     "exames": ["amostra_id", "tipo_exame", "teste_laboratorial", "laboratorio_realizador",
                "data_realizacao", "kit_utilizado", "resultado_detalhado",
                "responsavel_exame", "protocolo_exame"],
@@ -63,7 +41,7 @@ rel["colecoes"] = {}
 for nome in sorted(db.list_collection_names()):
     col = db[nome]
     n = col.count_documents({})
-    idx = [{"name": i["name"], "key": list(i["key"].items()), "unique": i.get("unique", False)}
+    idx = [{"name": i["name"], "key": list(i["key"].items()), "unique": bool(i.get("unique", False)) or i["name"] == "_id_"}
            for i in col.list_indexes()]
     campos = Counter()
     tipos_id = Counter()
@@ -165,7 +143,9 @@ rel["usuarios"] = {
 print(f"\n== 5. USUÁRIOS == total={rel['usuarios']['total']} dup_username={len(rel['usuarios']['usernames_duplicados'])} dup_email={len(rel['usuarios']['emails_duplicados'])}")
 
 data_hora = datetime.now().strftime("%Y%m%d_%H%M%S")
-out = os.path.join(os.path.dirname(os.path.abspath(__file__)), f"resultados/relatorio_auditoria_{data_hora}.json")
+out_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "resultados")
+os.makedirs(out_dir, exist_ok=True)
+out = os.path.join(out_dir, f"relatorio_auditoria_{data_hora}.json")
 with open(out, "w", encoding="utf-8") as f:
     json.dump(rel, f, ensure_ascii=False, indent=2, default=str)
 print(f"\nRelatório salvo em {out}  (contém IDs de registros: não versionar se forem sensíveis)")
