@@ -19,10 +19,9 @@ def modal_confirmar_amostra(amostra_data):
         "kit_utilizado": "Kit Utilizado",
         "longitude": "Longitude",
         "latitude": "Latitude",
-        #"resultado_exame": "Resultado do Exame",
         "observacoes": "Observações",
         "caixa": "Caixa de Armazenamento/Freezer",
-        "sangue_disponivel": "Amostra Disponível",
+        "status_amostra": "Status da Amostra",
         "dna_disponivel": "DNA Disponível",
         "rna_disponivel": "RNA Disponível",
         "sequenciamento": "Sequenciamento Realizado"
