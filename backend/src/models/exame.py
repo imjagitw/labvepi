@@ -1,8 +1,7 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field
 from datetime import date
 from enum import Enum
 from typing import Optional
-from pydantic import Field
 
 class TesteLaboratorial(str, Enum):
     PCR = 'PCR'
@@ -24,6 +23,8 @@ class TipoExame(str, Enum):
     OUTRO = 'Outro'
 
 class Exame(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
     # obrigatorios
     id: Optional[int] = None # gerado automaticamente autoincrementado
     amostra_id: int # chave estrangeira para a tabela de amostra

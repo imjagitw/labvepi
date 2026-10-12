@@ -1,15 +1,7 @@
-# lembrar de tratar nome comum e nome científico - enum ou dicionário ou sla
-
 from enum import Enum
 from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional
-
-class Classe(str, Enum): 
-    AVES = 'Ave'
-    MAMIFERO = 'Mamífero'
-    REPTIL = 'Réptil'
-    ANFIBIO = 'Anfíbio'
-    PEIXE = 'Peixe'
+from src.models.especie import Classe
 
 class Sexo(str, Enum): 
     MACHO = 'Macho'
@@ -55,9 +47,9 @@ class Animal(BaseModel):
     # obrigatorios
     id: Optional[int] = None  # Autoincrementado no banco
     animal_id: str = Field(..., alias="_id", description="ID único do laboratório (ex: AN001)")
-    classe: Classe # definido automaticamente com nome cientifico
-    nome_comum: str # fazer enum com os nomes comuns # trazer nome cientifico automaticamente
-    nome_cientifico: str # fazer enum com os nomes cientificos # trazer nome comum automaticamente
+    classe: Classe # definido com base na espécie
+    nome_comum: str # nome comum da espécie
+    nome_cientifico: str # nome científico da espécie
     sexo: Sexo # alarmar se não informado
     peso: float # opcao de nao aferido
     faixa_etaria: FaixaEtaria # calculado automaticamente se tiver idade # alarmar se não informado  
