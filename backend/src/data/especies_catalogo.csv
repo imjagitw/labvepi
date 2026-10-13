@@ -1,0 +1,88 @@
+nome_comum,nome_cientifico,classe
+Cachorro,Canis lupus familiaris,Mamífero
+Gato,Felis catus,Mamífero
+Cavalo,Equus caballus,Mamífero
+Asno,Equus asinus,Mamífero
+Jumento,Equus asinus,Mamífero
+Mula,Equus caballus x Equus asinus,Mamífero
+Burro,Equus caballus x Equus asinus,Mamífero
+Boi,Bos taurus,Mamífero
+Vaca,Bos taurus,Mamífero
+Cabra,Capra hircus,Mamífero
+Ovelha,Ovis aries,Mamífero
+Porco,Sus domesticus,Mamífero
+Saruê,Didelphis albiventris,Mamífero
+Gambá-de-orelha-branca,Didelphis albiventris,Mamífero
+Gambá-comum,Didelphis marsupialis,Mamífero
+Cutia,Dasyprocta prymnolopha,Mamífero
+Capivara,Hydrochoerus hydrochaeris,Mamífero
+Preá,Galea spixii,Mamífero
+Rato-de-esgoto,Rattus norvegicus,Mamífero
+Rato-preto,Rattus rattus,Mamífero
+Camundongo,Mus musculus,Mamífero
+Guaxinim,Procyon cancrivorus,Mamífero
+Raposa,Cerdocyon thous,Mamífero
+Jaguatirica,Leopardus pardalis,Mamífero
+Gato-do-mato,Leopardus wiedii,Mamífero
+Gato-maracajá,Leopardus wiedii,Mamífero
+Tatu-peba,Euphractus sexcinctus,Mamífero
+Tatu-verdadeiro,Dasypus novemcinctus,Mamífero
+Tamanduá-mirim,Tamandua tetradactyla,Mamífero
+Tamanduá-bandeira,Myrmecophaga tridactyla,Mamífero
+Bugio-preto,Alouatta caraya,Mamífero
+Bugio-ruivo,Alouatta ululata,Mamífero
+Bugio-do-maranhão,Alouatta ululata,Mamífero
+Macaco-prego,Sapajus libidinosus,Mamífero
+Macaco-aranha,Ateles chamek,Mamífero
+Macaco-caiarara,Cebus kaapori,Mamífero
+Macaco-barrigudo,Lagothrix lagotricha,Mamífero
+Mico-estrela,Callithrix penicillata,Mamífero
+Sagui-de-tufos-brancos,Callithrix jacchus,Mamífero
+Morcego-fruteiro-grande,Artibeus lituratus,Mamífero
+Artibeus sp.,Artibeus sp.,Mamífero
+Morcego-vampiro,Desmodus rotundus,Mamífero
+Morcego-insetívoro,Molossus molossus,Mamífero
+Molossus sp.,Molossus sp.,Mamífero
+Morcego-frugívoro-comum,Carollia perspicillata,Mamífero
+Morcego-de-cauda-grossa,Nyctinomops laticaudatus,Mamífero
+Morcego-glossofagíneo,Glossophaga soricina,Mamífero
+Morcego-de-linha-branca,Platyrrhinus lineatus,Mamífero
+Papagaio-verdadeiro,Amazona aestiva,Ave
+Ema,Rhea americana,Ave
+Anu-preto,Crotophaga ani,Ave
+Anu-branco,Guira guira,Ave
+Urubu-de-cabeça-preta,Coragyps atratus,Ave
+Urubu-de-cabeça-vermelha,Cathartes aura,Ave
+Carcará,Caracara plancus,Ave
+Gavião-carijó,Rupornis magnirostris,Ave
+Coruja-buraqueira,Athene cunicularia,Ave
+Bem-te-vi,Pitangus sulphuratus,Ave
+Rolinha-caldo-de-feijão,Columbina talpacoti,Ave
+Pombo-doméstico,Columba livia,Ave
+Sanhaço-cinzento,Tangara sayaca,Ave
+Sabiá-barranco,Turdus leucomelas,Ave
+Sabiá-laranjeira,Turdus rufiventris,Ave
+Arara-canindé,Ara ararauna,Ave
+Arara-vermelha,Ara chloropterus,Ave
+Periquito-rico,Brotogeris tirica,Ave
+Maritaca,Psittacara leucophthalmus,Ave
+Galinha-doméstica,Gallus gallus domesticus,Ave
+Pato-doméstico,Cairina moschata domesticus,Ave
+Jiboia,Boa constrictor,Réptil
+Sucuri,Eunectes murinus,Réptil
+Cascavel,Crotalus durissus,Réptil
+Jararaca,Bothrops jararaca,Réptil
+Cobra-coral,Micrurus ibiboboca,Réptil
+Iguana,Iguana iguana,Réptil
+Teiú,Salvator merianae,Réptil
+Jabuti-piranga,Chelonoidis carbonarius,Réptil
+Jabuti-tinga,Chelonoidis denticulatus,Réptil
+Cágado-do-nordeste,Mesoclemmys tuberculata,Réptil
+Jacaré-do-papo-amarelo,Caiman latirostris,Réptil
+Sapo-cururu,Rhinella diptycha,Anfíbio
+Sapo-boi,Leptodactylus vastus,Anfíbio
+Rã-manteiga,Leptodactylus latrans,Anfíbio
+Perereca-verde,Boana raniceps,Anfíbio
+Tilápia,Oreochromis niloticus,Peixe
+Tambaqui,Colossoma macropomum,Peixe
+Pintado,Pseudoplatystoma corruscans,Peixe

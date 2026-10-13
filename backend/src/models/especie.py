@@ -37,7 +37,16 @@ class Especie(BaseModel):
     #
     # ONDE FAZER:
     #   - Camada de Repositórios / Serviços: 'backend/src/repositories/especie_repository.py'
-    #     e 'backend/src/services/animal_service.py' (no método 'resolver_especie').
+    #     e 'backend/src/services/especie_service.py'.
     #   - Camada de Controladores: 'backend/src/controllers/especie_controller.py'
     #     ao receber dados de entrada para cadastro ou alteração de espécies.
     # =========================================================================
+
+
+class EspecieCreate(BaseModel):
+    """Schema puro de entrada para cadastro de espécie."""
+    model_config = ConfigDict(populate_by_name=True)
+
+    nome_comum: str = Field(..., alias="nome")
+    nome_cientifico: str = Field(..., description="Nome científico formal (binominal ou Gênero sp.)")
+    classe: Union[Classe, str]

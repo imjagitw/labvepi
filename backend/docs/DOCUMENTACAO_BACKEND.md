@@ -224,19 +224,42 @@ Todos os modelos utilizam `ConfigDict(populate_by_name=True)`, permitindo tanto 
 
 ## 5. Camada de Serviços e Repositórios
 
-A camada de serviços (`src/services/`) desacopla as regras operacionais dos endpoints HTTP e formulários.
+A arquitetura do backend segue estritamente a separação em três camadas: **Controladores** (HTTP/Rotas), **Serviços** (Regras de Negócio e Orquestração) e **Repositórios** (Acesso a Dados e Persistência).
 
-### 5.1. `AnimalService` e Resolução Taxonômica
+### 5.1. `AnimalService` e Regras de Negócio de Animais
 - **Arquivo**: `backend/src/services/animal_service.py`
-- Interage com `EspecieRepository` para verificar se o binômio científico ou nome popular já existe no acervo.
-- Se a espécie for inédita, exige confirmação explícita (`confirmar_nova_especie=True`) e os dados taxonômicos completos (`nome_comum`, `nome_cientifico`, `classe`) antes de permitir a criação da entidade `Animal`.
+- Injeta e orquestra chamadas ao `EspecieService` (para resolução taxonômica) e ao `AnimalRepository` (para persistência).
+- **Operações**:
+  - `criar_animal`: Validação de unicidade de `animal_id`, automação de espécie e classe via `EspecieService`, processamento/validação de peso e inferência de faixa etária a partir de idade.
+  - `obter_animal`: Consulta individual de animal por `animal_id`.
+  - `listar_animais`: Consulta paginada com filtros por classe taxonômica, sexo, regime de vida, status vital e termo de busca.
+  - `atualizar_animal`: Atualização parcial de atributos, re-resolvendo espécie via `EspecieService` e recalculando peso/faixa etária se modificados.
+  - `deletar_animal`: Remoção controlada por `animal_id`.
+- **Governança e Autorização Futura**:
+  - Método gancho `_verificar_permissao(acao, usuario)` preparado para acoplar a matriz de RBAC (Docentes, Bolsistas PIBITI, PIBIC, etc.) sem quebras de contrato.
 
-### 5.2. `EspecieRepository` e Catálogo em Memória
+### 5.2. `EspecieService` e Regras Taxonômicas
+- **Arquivo**: `backend/src/services/especie_service.py`
+- Contém a inteligência taxonômica:
+  - `normalizar_classe`: Mapeamento de variações textuais para o Enum `Classe`.
+  - `formatar_nome_cientifico`: Padronização taxonômica (Gênero em maiúsculo, epíteto específico em minúsculo).
+  - `resolver_especie`: Automação cruzada entre nome popular e binômio científico, exigindo confirmação e campos completos para espécies inéditas.
+  - `importar_tabela_csv`: Leitura, parsing e validação de tabelas de espécies recomendadas pelo laboratório.
+  - `cadastrar_especie`, `buscar_por_nome_comum`, `buscar_por_nome_cientifico`, `listar_especies`.
+
+### 5.3. `AnimalRepository` e Persistência de Animais
+- **Arquivo**: `backend/src/repositories/animal_repository.py`
+- Repositório puro de persistência (CRUD) para a entidade `Animal`:
+  - `salvar`, `buscar_por_animal_id`, `buscar_por_id`, `listar`, `atualizar`, `remover`, `contar`, `existe`.
+  - Isola a camada de serviço dos detalhes de armazenamento.
+
+### 5.4. `EspecieRepository` e Persistência de Espécies
 - **Arquivo**: `backend/src/repositories/especie_repository.py`
-- Mantém dois índices em memória (`_por_comum` e `_por_cientifico`) com busca normalizada (sem espaços redundantes e *case-insensitive*).
-- Inicializado com catálogo padrão de espécies frequentes (cães, gatos, primatas, jiboias, anfíbios, etc.) e aberto a expansão em tempo de execução.
+- Repositório puro de persistência para a entidade `Especie`:
+  - Mantém índices por nome comum e por nome científico.
+  - Operações: `salvar`, `buscar_por_nome_comum`, `buscar_por_nome_cientifico`, `buscar_por_id`, `listar`, `remover`, `existe`, `contar`.
 
-### 5.3. `ReagenteService` e Consolidação de Lotes
+### 5.5. `ReagenteService` e Consolidação de Lotes
 - **Arquivo**: `backend/src/services/reagente_service.py`
 - Valida unicidade de números de lote, calcula indicadores de vencimento (`esta_vencido`, `dias_para_vencer`) e agrega lotes individuais em instâncias consolidadas de `EstoqueReagente`.
 - Aplica a tabela de fatores de conversão dimensional (`FATORES_CONVERSAO`), prevenindo somas cegas entre grandezas incompatíveis (ex: somar $1\text{ L}$ com $500\text{ ml}$ resulta em $1500\text{ ml}$ e não em $501$) e formatando resumos legíveis para a interface.
@@ -248,7 +271,17 @@ A camada de serviços (`src/services/`) desacopla as regras operacionais dos end
 O ponto de entrada da API assíncrona está em `backend/src/main.py`:
 - Instância `FastAPI` com documentação interativa automática OpenAPI/Swagger (`/docs`) e ReDoc (`/redoc`).
 - Health check padrão em `GET /`.
-- Arquitetura pronta para incorporação de roteadores modulares em `src/controllers/` para operações CRUD sobre animais, amostras, exames e insumos.
+- **Roteador de Animais (`backend/src/controllers/animal_controller.py`)**:
+  - `POST /animais/`: Cadastro de novos animais (Status 201).
+  - `GET /animais/`: Listagem filtrada por classe, sexo, regime e busca textual com paginação (Status 200).
+  - `GET /animais/{animal_id}`: Consulta por ID do laboratório (Status 200 / 404).
+  - `PUT /animais/{animal_id}`: Atualização de animal existente (Status 200 / 400 / 404).
+  - `DELETE /animais/{animal_id}`: Exclusão de animal cadastrado (Status 200 / 404).
+- **Roteador de Espécies (`backend/src/controllers/especie_controller.py`)**:
+  - `POST /especies/`: Cadastro de nova espécie taxonômica (Status 201).
+  - `GET /especies/`: Listagem de espécies registradas no acervo (Status 200).
+  - `GET /especies/buscar`: Busca por nome comum ou científico via query params (Status 200 / 400 / 404).
+  - `POST /especies/importar-catalogo`: Importação de tabela CSV de espécies recomendada pelo laboratório (Status 200 / 400 / 404).
 
 ---
 

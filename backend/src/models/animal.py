@@ -108,7 +108,56 @@ class Animal(BaseModel):
     #
     # ONDE FAZER:
     #   - Camada de Serviços: 'backend/src/services/animal_service.py' (especificamente
-    #     no método 'criar_animal' ou funções de ingestão de dados).
+    #     no método 'criar_animal' e 'atualizar_animal').
     #   - Camada de Controladores/UI: 'backend/src/controllers/animal_controller.py'
     #     e nos formulários de cadastro do Streamlit ('streamlit/forms/animal_form.py').
     # =========================================================================
+
+
+class AnimalCreate(BaseModel):
+    """Schema puro de entrada para criação de um animal."""
+    model_config = ConfigDict(populate_by_name=True)
+
+    animal_id: str = Field(..., alias="_id", description="ID único do laboratório (ex: AN001)")
+    nome_comum: Optional[str] = None
+    nome_cientifico: Optional[str] = None
+    classe: Optional[Classe] = None
+    sexo: Sexo = Sexo.NAO_INFORMADO
+    peso: Union[float, str] = Field(default="Não aferido")
+    faixa_etaria: FaixaEtaria = FaixaEtaria.NAO_INFORMADO
+    orgao_origem: Orgao = Field(..., alias="orgao")
+    local_origem: str
+    regime_vida: RegimeVida = Field(..., alias="status")
+    status_vital: StatusVital
+    animal_id_projeto: Optional[str] = None
+    id_hvu: Optional[str] = None
+    microchip: Optional[str] = None
+    funcao: Optional[Funcao] = None
+    idade: Optional[str] = None
+    suspeita_clinica: Optional[str] = None
+    animal_observacoes: Optional[str] = Field(default=None, alias="observacoes")
+    confirmar_nova_especie: bool = False
+
+
+class AnimalUpdate(BaseModel):
+    """Schema puro de entrada para atualização parcial ou total de um animal."""
+    model_config = ConfigDict(populate_by_name=True)
+
+    classe: Optional[Classe] = None
+    nome_comum: Optional[str] = None
+    nome_cientifico: Optional[str] = None
+    sexo: Optional[Sexo] = None
+    peso: Optional[Union[float, str]] = None
+    faixa_etaria: Optional[FaixaEtaria] = None
+    orgao_origem: Optional[Orgao] = Field(default=None, alias="orgao")
+    local_origem: Optional[str] = None
+    regime_vida: Optional[RegimeVida] = Field(default=None, alias="status")
+    status_vital: Optional[StatusVital] = None
+    animal_id_projeto: Optional[str] = None
+    id_hvu: Optional[str] = None
+    microchip: Optional[str] = None
+    funcao: Optional[Funcao] = None
+    idade: Optional[str] = None
+    suspeita_clinica: Optional[str] = None
+    animal_observacoes: Optional[str] = Field(default=None, alias="observacoes")
+    confirmar_nova_especie: bool = False
