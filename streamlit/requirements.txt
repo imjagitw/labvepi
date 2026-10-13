@@ -7,3 +7,4 @@ openpyxl
 pymongo
 streamlit_option_menu
 plotly
+email-validator

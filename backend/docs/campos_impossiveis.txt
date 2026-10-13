@@ -1,0 +1,121 @@
+================================================================================
+CAMPOS QUE NÃO PODEM SER PREENCHIDOS PELA PLANILHA NEM POR SERVICE
+LABVEPI - Laboratório de Vigilância em Epizootias (UFPI)
+================================================================================
+
+Este documento lista estritamente os campos dos modelos (backend/src/models/)
+que NÃO constam nas 5 planilhas reais de controle e que também NÃO PODEM ser
+deduzidos, calculados ou preenchidos automaticamente por nenhuma camada de 
+Service ou Repositório, dependendo exclusivamente de inserção manual pelo usuário
+ou de conferência física no laboratório.
+
+================================================================================
+1. ENTIDADE: ANIMAL (backend/src/models/animal.py)
+================================================================================
+
+- id_hvu:
+  * Por que a planilha não tem: Não existe coluna de prontuário do Hospital 
+    Veterinário Universitário (a sigla "HVU" só aparece como texto na coluna Origem).
+  * Por que o service não pode preencher: O backend não tem integração com o 
+    sistema hospitalar externo do HVU para recuperar o número de prontuário.
+
+- microchip:
+  * Por que a planilha não tem: Mais de 95% das linhas estão em branco ou com "NI".
+  * Por que o service não pode preencher: Um número de microchip subcutâneo é um 
+    dado físico individual. O service não pode inventar um identificador de hardware.
+
+- peso (para a planilha mestre geral de 822 amostras e equídeos):
+  * Por que a planilha não tem: A planilha mestre não possui coluna de peso.
+  * Por que o service não pode preencher: Não é possível calcular ou adivinhar a 
+    massa corporal de animais silvestres resgatados sem aferição prévia em balança. 
+    (O campo adota o valor default "Não aferido").
+
+- funcao (para animais silvestres e registros sem indicação):
+  * Por que a planilha não tem: Só existe na planilha de equídeos. Aves, morcegos 
+    e primatas de vida livre não possuem finalidade antrópica.
+  * Por que o service não pode preencher: Uma finalidade de uso (Pet, Trabalho, 
+    Lazer, Reprodução) exige julgamento humano ou contexto que não existe em animais livres.
+
+- idade (cronológica em anos/meses):
+  * Por que a planilha não tem: As planilhas possuem apenas faixa etária categórica 
+    (filhote, adulto, etc.), sem idade cronológica.
+  * Por que o service não pode preencher: É biologicamente impossível determinar 
+    a data de nascimento exata de animais silvestres capturados na natureza.
+
+- suspeita_clinica (na maioria dos registros):
+  * Por que a planilha não tem: Ausente em mais de 70% das amostras históricas.
+  * Por que o service não pode preencher: É uma avaliação médico-veterinária subjetiva; 
+    o service não pode criar diagnósticos retroativos.
+
+================================================================================
+2. ENTIDADE: AMOSTRA (backend/src/models/amostra.py)
+================================================================================
+
+- nome_coletor:
+  * Por que a planilha não tem: Ausente na planilha geral (822 amostras). Existe 
+    apenas na ficha específica de aves.
+  * Por que o service não pode preencher: O service não tem como adivinhar qual 
+    pessoa física realizou a coleta em campo há anos atrás.
+
+- local_coleta_amostra (ponto específico de coleta):
+  * Por que a planilha não tem: A planilha geral tem apenas "Município e Bairro", 
+    sem o local exato da captura ou apreensão.
+  * Por que o service não pode preencher: Sem coordenadas ou endereço registrado na 
+    ficha de campo, o service não tem como inferir a localização exata da coleta.
+
+- condicao_armazenamento (Refrigerada, Congelada, Nitrogênio líquido, etc.):
+  * Por que a planilha não tem: Inexistente nas planilhas históricas de campo e na geral.
+  * Por que o service não pode preencher: Refere-se à condição física e térmica em 
+    que o frasco foi mantido. Não há registro físico pretérito para inferência.
+
+- caixa_armazenamento (endereçamento físico: freezer, gaveta, rack, caixa):
+  * Por que a planilha não tem: Inexistente na planilha mestre.
+  * Por que o service não pode preencher: Trata-se da localização física real do 
+    tubo dentro dos freezers (-20°C ou -80°C) do LABVEPI. Exige conferência presencial de bancada.
+
+- dna_disponivel / rna_disponivel / sequenciamento_disponivel:
+  * Por que a planilha não tem: A planilha mestre possui apenas a coluna "Extração: sim/não". 
+    Não há controle de alíquotas remanescentes de ácidos nucleicos.
+  * Por que o service não pode preencher: O service não tem como inspecionar o volume 
+    restante nos microtubos guardados no freezer para saber se ainda há material disponível.
+
+- latitude e longitude (coordenadas geográficas exatas):
+  * Por que a planilha não tem: Inexistentes na planilha geral, morcegos e equídeos 
+    (só presentes na ficha de aves).
+  * Por que o service não pode preencher: Geocodificar o município gera apenas o 
+    centróide da cidade, não o ponto geográfico real do resgate/captura do animal.
+
+================================================================================
+3. ENTIDADE: EXAME (backend/src/models/exame.py)
+================================================================================
+
+- responsavel_exame:
+  * Por que a planilha não tem: As tabelas de patógenos trazem a data e o resultado, 
+    mas não a assinatura ou nome do operador do ensaio.
+  * Por que o service não pode preencher: O service não tem como identificar qual 
+    aluno, bolsista ou técnico pipetou a reação específica de PCR ou sorologia no passado.
+
+- laboratorio_realizador (em caso de terceirização):
+  * Por que a planilha não tem: Não há discriminação de encaminhamento externo.
+  * Por que o service não pode preencher: Assume-se LABVEPI por padrão, mas se um 
+    ensaio foi enviado a um laboratório parceiro (Fiocruz, Instituto Pasteur, etc.), 
+    o service não possui esse registro histórico.
+
+- kit_utilizado (específico por patógeno):
+  * Por que a planilha não tem: A planilha mestre traz apenas o kit geral de 
+    extração (coluna H), mas não os kits ou master mixes de cada um dos 8 patógenos.
+  * Por que o service não pode preencher: Não é possível deduzir a marca comercial 
+    dos reagentes diagnósticos empregados em reações antigas sem anotação em livro de bancada.
+
+- protocolo_exame (quando em branco na planilha):
+  * Por que a planilha não tem: Em dezenas de colunas de patógenos, a coluna 
+    'Protocolo utilizado' está vazia.
+  * Por que o service não pode preencher: Sem referência escrita a artigo ou 
+    primer/termociclagem, o service não tem como determinar o protocolo exato da reação.
+
+================================================================================
+4. ENTIDADES DE GESTÃO DE ESTOQUE: REAGENTE E ESTOQUE DE REAGENTE
+   (backend/src/models/reagente.py e estoqueReagente.py)
+================================================================================
+
+- FALTA PLANILHA DE REAGENTES

@@ -1,19 +1,45 @@
 from datetime import date
 from enum import Enum
 from pydantic import BaseModel, ConfigDict, Field
-from typing import Optional
+from typing import Optional, Union
 
 class MetodoColeta(str, Enum): 
-    SWAB_NASAL = 'Swab nasal'
+    # Swabs
     SWAB_ORAL = 'Swab oral'
+    SWAB_NASAL = 'Swab nasal'
     SWAB_CLOACAL = 'Swab cloacal'
+    SWAB_ORAL_CLOACAL = 'Swab oral e cloacal'
+    SWAB_RETAL = 'Swab retal'
+    SWAB_TRAQUEAL = 'Swab traqueal'
+    SWAB_OCULAR = 'Swab ocular'
+    
+    # Sangue e derivados
     SANGUE = 'Sangue'
-    NECROPSIA = 'Necrópsia'
-    FEZES = 'Fezes'
+    SANGUE_TOTAL = 'Sangue total'
+    SANGUE_EDTA = 'Sangue (EDTA)'
+    SORO = 'Soro'
+    PAPEL_FILTRO = 'Papel filtro'
+    ESFREGACO_SANGUINEO = 'Esfregaço sanguíneo'
+    
+    # Tecidos e órgãos
     TECIDO = 'Tecido'
+    POOL_TECIDOS = 'Pool de tecidos'
+    ORGAOS = 'Órgãos'
+    BACO = 'Baço'
+    FIGADO = 'Fígado'
+    PULMAO = 'Pulmão'
+    RIM = 'Rim'
+    ENCEFALO = 'Encéfalo / Cérebro'
+    CORACAO = 'Coração'
+    
+    # Excretas, secreções e outros
+    FEZES = 'Fezes'
+    ENEMA = 'Enema'
+    LIQUOR = 'Líquor / LCR'
+    ECTOPARASITA = 'Ectoparasita'
     PELE = 'Pele'
     PELO = 'Pelo'
-    ESFREGACO_SANGUINEO = 'Esfregaço sanguíneo'
+    NECROPSIA = 'Necrópsia'
     OUTRO = 'Outro'
 
 class CondicaoArmazenamento(str, Enum): 
@@ -51,26 +77,58 @@ class StatusAmostra(str, Enum):
 class Amostra(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
-    # obrigatorios       
+    # Identificação e vínculos primários
     id: Optional[int] = None  # Autoincrementado no banco
-    amostra_id: str = Field(..., alias="_id", description="ID único do laboratório (ex: AN001)")    
-    animal_id: int # chave estrangeira para a tabela de animais
-    data_coleta_amostra: date # alarmar se não informado
-    local_coleta_amostra: str # alarmar se não informado
-    nome_coletor: str # alarmar se não informado
-    metodo_coleta: MetodoColeta # alarmar se não informado
-    condicao_armazenamento: CondicaoArmazenamento # alarmar se não informado
-    fase_amostra: FaseAmostra # alarmar se não informado
-    destino_amostra: DestinoAmostra # alarmar se não informado    
-    kit_utilizado: str # alarmar se não informado 
-    caixa_armazenamento: str = Field(..., alias="caixa", description="Caixa de armazenamento da amostra") # alarmar se não informado
-    status_amostra: StatusAmostra = StatusAmostra.DISPONIVEL  # alarmar se não informado # nasce disponível
-    sequenciamento_disponivel: bool = Field(default=False, alias="sequenciamento") # alarmar se não informado
-    dna_disponivel: bool # alarmar se não informado
-    rna_disponivel: bool # alarmar se não informado
+    amostra_id: str = Field(..., alias="_id", description="ID único do laboratório (ex: L 1, AMS001)")    
+    animal_id: str = Field(..., description="ID ou chave do animal vinculado (ex: AN001, A547)")
+    
+    # Datas de rastreamento
+    data_coleta_amostra: Optional[date] = Field(default=None, alias="data_coleta", description="Data em que a coleta foi realizada")
+    data_entrega: Optional[date] = Field(default=None, alias="data_recebimento", description="Data em que a amostra deu entrada no LABVEPI")
+    
+    # Tipo / Material biológico coletado
+    metodo_coleta: Union[MetodoColeta, str] = Field(default=MetodoColeta.OUTRO, description="Tipo de amostra / método de coleta")
+    
+    # Status e Laudo
+    status_amostra: StatusAmostra = StatusAmostra.DISPONIVEL  # nasce disponível
+    laudo_liberado: Optional[str] = Field(default=None, description="Status de liberação do laudo da amostra (sim, não, pesquisa, óbito)")
 
-    # opcionais
+    # Campos de triagem / laboratório (opcionais com defaults, ausentes na planilha histórica geral)
+    local_coleta_amostra: Optional[str] = Field(default=None, alias="local_coleta", description="Local específico da coleta")
+    nome_coletor: Optional[str] = None
+    condicao_armazenamento: Optional[CondicaoArmazenamento] = None
+    fase_amostra: Optional[FaseAmostra] = FaseAmostra.EXTRACAO
+    destino_amostra: Optional[DestinoAmostra] = DestinoAmostra.LAB_VIGILANCIA_EPIZOOTIAS_UFPI
+    kit_utilizado: Optional[str] = None # kit de extração
+    caixa_armazenamento: Optional[str] = Field(default=None, alias="caixa", description="Caixa de armazenamento / freezer")
+    
+    # Disponibilidade de frações
+    dna_disponivel: bool = False
+    rna_disponivel: bool = False
+    sequenciamento_disponivel: bool = Field(default=False, alias="sequenciamento")
+
+    # Campos de projetos e geolocalização (opcionais)
     amostra_id_projeto: Optional[str] = None # id do projeto a que a amostra pertence
-    longitude: Optional[float] = None # TEM NAS PLANILHAS? SE NÃO, TIRAR
-    latitude: Optional[float] = None # TEM NAS PLANILHAS? SE NÃO, TIRAR
+    longitude: Optional[float] = None
+    latitude: Optional[float] = None
     amostra_observacoes: Optional[str] = Field(default=None, alias="observacoes")
+
+    # =========================================================================
+    # AÇÕES / VALIDAÇÕES / SERVICES RETIRADOS DESTE MODEL:
+    # -------------------------------------------------------------------------
+    # O QUE FAZER:
+    #   1. Normalização heurística de 'metodo_coleta':
+    #      - Converter strings recebidas de planilhas/formulários para o Enum
+    #        'MetodoColeta' correspondente (busca case-insensitive).
+    #      - Mapear termos frequentes de planilhas (ex: 'soro' -> MetodoColeta.SORO,
+    #        'papel filtro' -> MetodoColeta.PAPEL_FILTRO, 'cloacal'/'oral' ->
+    #        MetodoColeta.SWAB_ORAL_CLOACAL, 'sangue' -> MetodoColeta.SANGUE,
+    #        'órgão'/'orgao' -> MetodoColeta.ORGAOS, 'tecido' -> MetodoColeta.TECIDO,
+    #        'fezes' -> MetodoColeta.FEZES, etc.).
+    #
+    # ONDE FAZER:
+    #   - Camada de Serviços: 'backend/src/services/amostra_service.py' (ou
+    #     rotina de ingestão/ETL de planilhas) antes de instanciar a entidade Amostra.
+    #   - Camada de Controladores: 'backend/src/controllers/amostra_controller.py'
+    #     ao receber e sanitizar os payloads dos endpoints HTTP.
+    # =========================================================================

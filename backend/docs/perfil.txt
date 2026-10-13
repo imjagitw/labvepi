@@ -1,0 +1,6 @@
+Quais perfis devem ter permissão em cada ação?
+- Registrar, editar e deletar animais: docente, mestrando, doutorando, bolsista externo e bolsista pibit
+- Registrar, editar e deletar amostras: docente, mestrando, doutorando, bolsista externo e bolsista pibit
+- Registrar, editar e deletar exames: docente, bolsista externo e bolsista pibit
+- Registrar, editar e deletar reagentes: docente, mestrando, doutorando, bolsista externo e bolsista pibit
+- Visualizir tudio: docente, mestrando, doutorando, bolsista externo, bolsista pibic e bolsista pibit
