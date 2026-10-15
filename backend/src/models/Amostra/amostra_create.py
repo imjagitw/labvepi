@@ -14,6 +14,7 @@ class AmostraCreate(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
     # Identificação e vínculos primários
+    id: Optional[int] = None # gerado automaticamente autoincrementado
     amostra_id: str = Field(..., alias="_id", description="ID único do laboratório (ex: L 1, AMS001)")
     animal_id: str = Field(..., alias="animal", description="ID ou chave do animal vinculado (ex: AN001, A547)")
 

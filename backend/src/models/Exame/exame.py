@@ -1,38 +1,7 @@
 from pydantic import BaseModel, ConfigDict, Field
 from datetime import date
-from enum import Enum
 from typing import Optional
-
-class TesteLaboratorial(str, Enum):
-    PCR = 'PCR'
-    SOROLOGICO = 'Sorológico'
-    COPROPARASITOLOGICO = 'Coproparasitológico'
-    HEMOPARASITO_EM_LAMINA = 'Hemoparasito em lâmina'
-    OUTRO = 'Outro'
-
-class TipoExame(str, Enum): 
-    FEBRE_DO_NILO = 'Febre do Nilo'
-    ORTHOFLAVIRIDAE = 'OrthoFlaviviridae'
-    FLAVIVIRUS = 'Flavivírus'
-    FEBRE_AMARELA = 'Febre Amarela'
-    MYCOPLASMA = 'Mycoplasma'
-    HERPESVIRIDAE = 'Herpesviridae'
-    HERPESVIRUS = 'Herpesvírus'
-    TRIPANOSTOMATIDAE = 'Trypanosomatidae'
-    RESISTENCIA_BACTERIANA = 'Resistência Bacteriana'
-    HEPATOZOON = 'Hepatozoon'
-    RAIVA = 'Raiva'
-    CHLAMYDIA = 'Chlamydia'
-    SARCOCYSTIDAE = 'Sarcocystidae'
-    PLASMODIUM_HAEMOPROTEUS = 'Plasmodium e Haemoproteus'
-    OUTRO = 'Outro'
-
-class ResultadoExame(str, Enum):
-    POSITIVO = 'Positivo'
-    NEGATIVO = 'Negativo'
-    INCONCLUSIVO = 'Inconclusivo'
-    AGUARDANDO = 'Aguardando Resultado'
-    NAO_REALIZADO = 'Não Realizado'
+from src.models.Exame import TipoExame, ResultadoExame, TesteLaboratorial
 
 class Exame(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
@@ -44,17 +13,10 @@ class Exame(BaseModel):
     resultado: ResultadoExame = Field(..., alias="resultado_detalhado") # resultado categorizado do ensaio
     data_realizacao: date # cadastrar apenas exames realizados, então alarmar se não informado data
 
-    # detalhamento e observações
-    resultado_detalhe: Optional[str] = Field(
-        default=None, 
-        alias="resultado_observacoes", 
-        description="Detalhamento técnico ou observação original da planilha (ex: 'c+ não marcou', 'sem C+')"
-    )
-
     # contextuais (herdados de Amostra ou preenchidos no laudo) 
     # atualizar como obrigatorio quando acrescentar a entidade laudo
     material_biologico: Optional[str] = None # herdado da Amostra (metodo_coleta) se não informado
-    teste_laboratorial: Optional[TesteLaboratorial] = TesteLaboratorial.PCR
+    teste_laboratorial: TesteLaboratorial
     laboratorio_realizador: Optional[str] = None # preenchido no laudo
     responsavel_exame: Optional[str] = None # preenchido no laudo
     kit_utilizado: Optional[str] = None # preenchido no laudo

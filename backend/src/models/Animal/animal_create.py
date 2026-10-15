@@ -5,6 +5,7 @@ from src.models.Animal import Funcao, Orgao, RegimeVida, Sexo, StatusVital, Faix
 
 class AnimalCreate(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
+    id: Optional[int] = None # gerado automaticamente autoincrementado
     animal_id: str = Field(..., alias="_id")
     classe: Optional[Classe] = None
     nome_comum: Optional[str] = None
