@@ -15,7 +15,7 @@ from src.services.amostra_service import (
     StatusAmostra,
 )
 
-router = APIRouter(prefix="/amostras", tags=["Amostras"])
+router = APIRouter(prefix="/amostra", tags=["Amostra"])
 
 @router.post(
     "/",

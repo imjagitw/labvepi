@@ -2,8 +2,12 @@ from typing import Optional, List, Union
 from fastapi import APIRouter, HTTPException, Query, status
 from src.services.especie_service import especie_service
 from src.models.Especie import Especie, EspecieCreate, EspecieUpdate, EspecieDetails
+from src.models.Animal.animal import Animal
 
-router = APIRouter(prefix="/especies", tags=["Espécies"])
+# Resolve referências antecipadas do schema para validação e documentação OpenAPI
+EspecieDetails.model_rebuild(_types_namespace={"Animal": Animal})
+
+router = APIRouter(prefix="/especie", tags=["Espécie"])
 
 @router.post(
     "/cadastro",

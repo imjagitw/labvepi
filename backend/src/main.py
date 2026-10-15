@@ -2,6 +2,11 @@ from fastapi import FastAPI
 from src.controllers.animal_controller import router as animal_router
 from src.controllers.especie_controller import router as especie_router
 from src.controllers.amostra_controller import router as amostra_router
+from src.models.Especie.especie_details import EspecieDetails
+from src.models.Animal.animal import Animal
+
+# Garante a resolução completa de referências bidirecionais para os schemas OpenAPI
+EspecieDetails.model_rebuild(_types_namespace={"Animal": Animal})
 
 app = FastAPI(
     title="LABVEPI API",

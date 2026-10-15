@@ -14,7 +14,7 @@ from src.services.animal_service import (
     StatusVital,
 )
 
-router = APIRouter(prefix="/animais", tags=["Animais"])
+router = APIRouter(prefix="/animal", tags=["Animal"])
 
 @router.post(
     "/",

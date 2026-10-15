@@ -405,8 +405,8 @@ O backend conta com suíte de testes automatizados em [backend/tests/](file:///h
 
 ### Executando os Testes:
 ```bash
-# Executar todos os testes do backend via unittest
-python3 -m unittest discover -s backend/tests
+# Estando dentro do diretório 'backend'
+python3 -m unittest discover -s tests
 ```
 
 ---
@@ -418,15 +418,18 @@ python3 -m unittest discover -s backend/tests
 - Ambiente virtual configurado e ativo
 
 ```bash
-# 1. Ativar o ambiente virtual (na raiz do projeto)
+# 1. Entrar na pasta do backend (se estiver na raiz)
+cd backend
+
+# 2. Ativar o ambiente virtual
 source .venv/bin/activate  # Linux/macOS
 # ou: .venv\Scripts\activate no Windows
 
-# 2. Instalar dependências do backend
-pip install -r backend/requirements.txt
+# 3. Instalar dependências do backend
+pip install -r requirements.txt
 
-# 3. Iniciar o servidor Uvicorn com hot-reload
-uvicorn backend.src.main:app --reload --port 8000
+# 4. Iniciar o servidor Uvicorn com hot-reload
+uvicorn src.main:app --reload --port 8000
 ```
 
 - **API Health Check**: `http://localhost:8000/`
