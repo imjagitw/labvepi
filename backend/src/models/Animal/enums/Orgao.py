@@ -1,0 +1,20 @@
+from enum import Enum
+
+class Orgao(str, Enum): 
+    UFPI = 'UFPI'
+    HVU = 'HVU'
+    CCZ = 'CCZ'
+    NEPPAS = 'NEPPAS'
+    IBAMA_CETAS_PI = 'IBAMA - CETAS - PI'
+    IBAMA_CETAS_CE = 'IBAMA - CETAS - CE'
+    IBAMA_CETAS_RN = 'IBAMA - CETAS - RN'
+    SEMARH_CETAS_PI = 'SEMARH - CETAS - PI'
+    UFPA = 'UFPA'
+    UFRR = 'UFRR'
+    UFAC = 'UFAC'
+    UFOB = 'UFOB'
+    DSEI_LESTE_AM = 'DSEI LESTE - AM'
+    ZOOLOGICO_PI = 'ZOOLOGICO -PI'
+    PARTICULAR = 'PARTICULAR'
+    OUTRO = 'OUTRO'
+    NAO_INFORMADO = 'NAO INFORMADO'

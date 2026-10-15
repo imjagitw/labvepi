@@ -6,7 +6,7 @@ from pathlib import Path
 # Garante import do backend/src
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from src.models.animal import (
+from src.models.Animal import (
     Animal,
     AnimalCreate,
     AnimalUpdate,
@@ -16,7 +16,7 @@ from src.models.animal import (
     RegimeVida,
     StatusVital,
 )
-from src.models.especie import Classe
+from src.models.Especie import Classe
 from src.repositories.especie_repository import EspecieRepository
 from src.repositories.animal_repository import AnimalRepository
 from src.services.especie_service import EspecieService

@@ -1,13 +1,7 @@
 from enum import Enum
 from typing import Optional, Union
 from pydantic import BaseModel, ConfigDict, Field
-
-class Classe(str, Enum):
-    AVES = "Ave"
-    MAMIFERO = "Mamífero"
-    REPTIL = "Réptil"
-    ANFIBIO = "Anfíbio"
-    PEIXE = "Peixe"
+from .enums.Classe import Classe
 
 class Especie(BaseModel):
     """
@@ -41,12 +35,3 @@ class Especie(BaseModel):
     #   - Camada de Controladores: 'backend/src/controllers/especie_controller.py'
     #     ao receber dados de entrada para cadastro ou alteração de espécies.
     # =========================================================================
-
-
-class EspecieCreate(BaseModel):
-    """Schema puro de entrada para cadastro de espécie."""
-    model_config = ConfigDict(populate_by_name=True)
-
-    nome_comum: str = Field(..., alias="nome")
-    nome_cientifico: str = Field(..., description="Nome científico formal (binominal ou Gênero sp.)")
-    classe: Union[Classe, str]

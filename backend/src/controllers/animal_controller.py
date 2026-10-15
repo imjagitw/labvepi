@@ -1,15 +1,18 @@
 from typing import Optional, List
 from fastapi import APIRouter, HTTPException, Query, status
-from src.models.animal import (
+
+# Importação da INSTÂNCIA do serviço e dos modelos
+from src.services.animal_service import (
+    animal_service,
     Animal,
     AnimalCreate,
     AnimalUpdate,
+    AnimalDetails,
+    Classe,
     Sexo,
     RegimeVida,
     StatusVital,
 )
-from src.models.especie import Classe
-from src.services.animal_service import animal_service
 
 router = APIRouter(prefix="/animais", tags=["Animais"])
 
@@ -62,7 +65,6 @@ def listar_animais(
         limit=limit,
     )
 
-
 @router.get(
     "/{animal_id}",
     response_model=Animal,
@@ -72,6 +74,18 @@ def listar_animais(
 def obter_animal(animal_id: str):
     try:
         return animal_service.obter_animal(animal_id)
+    except KeyError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
+@router.get(
+    "/{animal_id}/detalhes",
+    response_model=AnimalDetails,
+    summary="Buscar detalhes completos do animal por ID",
+    description="Recupera os detalhes completos do animal, incluindo padronização de campos não informados, dados da espécie e lista de amostras associadas.",
+)
+def obter_animal_detalhes(animal_id: str):
+    try:
+        return animal_service.obter_animal_detalhes(animal_id)
     except KeyError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
@@ -101,7 +115,6 @@ def atualizar_animal(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except PermissionError as e:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
-
 
 @router.delete(
     "/{animal_id}",

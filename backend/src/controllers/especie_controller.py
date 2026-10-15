@@ -1,12 +1,12 @@
-from typing import Optional, List
+from typing import Optional, List, Union
 from fastapi import APIRouter, HTTPException, Query, status
-from src.models.especie import Especie, EspecieCreate
 from src.services.especie_service import especie_service
+from src.models.Especie import Especie, EspecieCreate, EspecieUpdate, EspecieDetails
 
 router = APIRouter(prefix="/especies", tags=["Espécies"])
 
 @router.post(
-    "/",
+    "/cadastro",
     response_model=Especie,
     status_code=status.HTTP_201_CREATED,
     summary="Cadastrar espécie",
@@ -18,52 +18,73 @@ def cadastrar_especie(especie_in: EspecieCreate):
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
-
 @router.get(
     "/",
     response_model=List[Especie],
-    summary="Listar espécies",
-    description="Retorna todas as espécies cadastradas no acervo taxonômico.",
+    summary="Listar ou filtrar espécies",
+    description="Retorna todas as espécies ou aplica filtros cruzados por nome e classe.",
 )
-def listar_especies():
-    return especie_service.listar_especies()
-
-
-@router.get(
-    "/buscar",
-    response_model=Especie,
-    summary="Buscar espécie por nome",
-    description="Recupera uma espécie pelo nome comum ou nome científico.",
-)
-def buscar_especie(
-    nome_comum: Optional[str] = Query(None, description="Nome comum/popular da espécie"),
-    nome_cientifico: Optional[str] = Query(None, description="Nome científico formal"),
+def listar_ou_buscar_especies(
+    nome_comum: Optional[str] = Query(None, description="Filtrar por nome comum/popular"),
+    nome_cientifico: Optional[str] = Query(None, description="Filtrar por nome científico formal"),
+    classe: Optional[str] = Query(None, description="Filtrar por classe taxonômica"),
 ):
-    if not nome_comum and not nome_cientifico:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Informe 'nome_comum' ou 'nome_cientifico' para realizar a busca.",
-        )
-
-    especie = None
-    if nome_cientifico:
-        especie = especie_service.buscar_por_nome_cientifico(nome_cientifico)
-    if not especie and nome_comum:
-        especie = especie_service.buscar_por_nome_comum(nome_comum)
-
-    if not especie:
+    resultados = especie_service.filtrar_especies(
+        nome_comum=nome_comum,
+        nome_cientifico=nome_cientifico,
+        classe=classe
+    )
+    
+    if not resultados and any([nome_comum, nome_cientifico, classe]):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Espécie não encontrada no catálogo.",
+            detail="Nenhuma espécie encontrada com os filtros informados."
         )
 
-    return especie
+    return resultados
 
+@router.get(
+    "/{id}",
+    response_model=EspecieDetails,
+    summary="Obter detalhes da espécie e animais associados",
+    description="Retorna os dados da espécie mais a contagem e listagem de animais relacionados.",
+)
+def obter_especie_detalhes(id: Union[int, str]):
+    try:
+        return especie_service.obter_especie_detalhes(id)
+    except KeyError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
+@router.put(
+    "/{id}",
+    response_model=Especie,
+    summary="Atualizar espécie",
+    description="Atualiza os dados taxonômicos repassando a validação de regras de negócio ao Service.",
+)
+def atualizar_especie(id: Union[int, str], especie_in: EspecieUpdate):
+    try:
+        return especie_service.atualizar_especie(id, especie_in)
+    except KeyError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+@router.delete(
+    "/{id}",
+    summary="Deletar espécie",
+    description="Remove a espécie do acervo via Service.",
+)
+def deletar_especie(id: Union[int, str]):
+    try:
+        especie_service.deletar_especie(id)
+        return {"message": "Espécie removida com sucesso", "id": id}
+    except KeyError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 @router.post(
     "/importar-catalogo",
     summary="Importar tabela CSV de espécies",
-    description="Importa uma tabela CSV contendo nomes comuns, científicos e classes recomendadas pelo laboratório.",
+    description="Delega a ingestão e formatação do CSV para o fluxo de serviço.",
 )
 def importar_catalogo_csv(caminho_arquivo: str = Query(..., description="Caminho do arquivo CSV no servidor")):
     try:

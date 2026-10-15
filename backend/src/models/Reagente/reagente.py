@@ -12,6 +12,11 @@ class UnidadeMedida(str, Enum):
     KG = 'kg'
     UNIDADE = 'un'
 
+class EtapaReagente(str, Enum):
+    EXTRAÇÃO = 'Extração'
+    PCR = 'PCR'
+    ELETRO = 'ELETRO'
+
 class Reagente(BaseModel):
     """
     Entidade representativa de um lote físico de reagente no laboratório.
@@ -33,8 +38,8 @@ class Reagente(BaseModel):
     # Opcionais
     reagente_id: Optional[str] = Field(default=None, alias="_id", description="Identificador único padrão do laboratório")
     quantidade_volume: Optional[float] = Field(default=None, description="Volume ou massa contida em cada unidade")
-    unidade_medida: str = Field(default="ml", alias="unidade", description="Unidade de medida (ex: ml, L, g)")
-    reagente_etapa: Optional[str] = Field(default=None, alias="etapa", description="Etapa laboratorial em que é empregado")
+    unidade_medida: UnidadeMedida = Field(default="ml", alias="unidade", description="Unidade de medida (ex: ml, L, g)")
+    reagente_etapa: Optional[EtapaReagente] = Field(default=None, alias="etapa", description="Etapa laboratorial em que é empregado")
     reagente_observacoes: Optional[str] = Field(default=None, alias="observacoes", description="Observações complementares")
 
     # Atributos de dados calculados pelo serviço (puros campos para transporte de estado):

@@ -10,6 +10,7 @@ class EstoqueReagente(BaseModel):
     """
     model_config = ConfigDict(populate_by_name=True)
 
+    id: Optional[int] = None
     reagente_nome: str = Field(..., alias="nome", description="Nome do reagente")
     reagente_codigo: Optional[str] = Field(default=None, alias="codigo", description="Código de referência do reagente")
     lotes: List[Reagente] = Field(default_factory=list, description="Lista de lotes associados ao reagente")

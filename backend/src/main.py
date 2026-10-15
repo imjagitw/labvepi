@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from src.controllers.animal_controller import router as animal_router
 from src.controllers.especie_controller import router as especie_router
+from src.controllers.amostra_controller import router as amostra_router
 
 app = FastAPI(
     title="LABVEPI API",
@@ -10,6 +11,7 @@ app = FastAPI(
 
 app.include_router(animal_router)
 app.include_router(especie_router)
+app.include_router(amostra_router)
 
 @app.get("/")
 def root():

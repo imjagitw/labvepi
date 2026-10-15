@@ -4,3 +4,10 @@ Quais perfis devem ter permissão em cada ação?
 - Registrar, editar e deletar exames: docente, bolsista externo e bolsista pibit
 - Registrar, editar e deletar reagentes: docente, mestrando, doutorando, bolsista externo e bolsista pibit
 - Visualizir tudio: docente, mestrando, doutorando, bolsista externo, bolsista pibic e bolsista pibit
+
+O que deve acontecer quando alguém tentar excluir um Animal com amostras vinculadas, ou uma Amostra com exames vinculados?
+Bloquear exclusão caso haja dependentes - detalhe: tratar junção de dados de dois animais/amostras em um(a) só
+
+O site deve ser tirado do streamlit e ser upado na máquinba virtual da ufpi
+
+Manter a obrigatoriedade e a não obrigatoriedade de todos os campos de acordo com o streamlit. Em caso de campos obrigatórios sem dados colocar não informado, não aferido, etc.

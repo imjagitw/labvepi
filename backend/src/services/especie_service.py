@@ -1,7 +1,7 @@
 import csv
 from pathlib import Path
 from typing import Optional, Union, List, Dict, Any
-from src.models.especie import Especie, EspecieCreate, Classe
+from src.models.Especie import Especie, EspecieCreate, EspecieUpdate, Classe
 from src.repositories.especie_repository import EspecieRepository, especie_repository
 
 MAPA_CLASSES: Dict[str, Classe] = {
@@ -25,8 +25,11 @@ MAPA_CLASSES: Dict[str, Classe] = {
 
 class EspecieService:
     """
-    Serviço responsável pelas regras de negócio e validações taxonômicas de Espécie:
-    - Normalização de classe e validação de nomes científicos.
+    Serviço responsável pelas ações de negócio e ciclo de vida da entidade Espécie:
+    - [CREATE] Validação, formatação taxonômica e cadastro de espécies.
+    - [READ] Consultas, buscas indexadas, listagem, contagem e filtros cruzados.
+    - [UPDATE] Atualização com checagem de consistência e regras taxonômicas.
+    - [DELETE] Exclusão com validação de existência.
     - Resolução taxonômica automatizada a partir do catálogo.
     - Ingestão e parsing de tabelas de referência recomendadas pelo laboratório (CSV).
     - Orquestração das operações de persistência junto ao EspecieRepository.
@@ -38,7 +41,7 @@ class EspecieService:
         carregar_catalogo_padrao: bool = True,
     ):
         self.repo = repo or especie_repository
-        if carregar_catalogo_padrao and self.repo.contar() == 0:
+        if carregar_catalogo_padrao and self.repo.count() == 0:
             caminho_csv = Path(__file__).resolve().parent.parent / "data" / "especies_catalogo.csv"
             if caminho_csv.exists():
                 self.importar_tabela_csv(caminho_csv, ignorar_duplicados=True)
@@ -73,13 +76,17 @@ class EspecieService:
         partes_formatadas = [partes[0].capitalize()] + [p.lower() for p in partes[1:]]
         return " ".join(partes_formatadas)
 
+    # -------------------------------------------------------------------------
+    # OPERAÇÕES DE CRUD E AÇÕES DE NEGÓCIO:
+    # -------------------------------------------------------------------------
+
     def cadastrar_especie(
         self,
         dados: Union[Dict[str, Any], EspecieCreate],
         ignorar_duplicados: bool = False,
     ) -> Especie:
         """
-        Aplica regras de negócio e cadastra uma nova espécie no acervo.
+        [CREATE] Aplica regras de negócio, validações taxonômicas e cadastra uma nova espécie.
         """
         if isinstance(dados, EspecieCreate):
             nome_comum = dados.nome_comum
@@ -108,19 +115,156 @@ class EspecieService:
             nome_cientifico=nome_cient_formatado,
             classe=classe_canon,
         )
-        return self.repo.salvar(especie)
+        return self.repo.save(especie)
+
+    def obter_especie(self, id_especie: Union[int, str]) -> Especie:
+        """
+        [READ] Recupera uma espécie cadastrada pelo seu identificador primário.
+        Lança KeyError se a espécie não for encontrada.
+        """
+        especie = self.repo.buscar_por_id(id_especie)
+        if not especie:
+            raise KeyError(f"Espécie com ID '{id_especie}' não encontrada.")
+        return especie
+
+    def obter_especie_detalhes(self, id_especie: Union[int, str]):
+        """
+        [READ] Recupera informações completas da espécie incluindo contagem e listagem de animais.
+        Lança KeyError se a espécie não for encontrada.
+        """
+        from src.repositories.animal_repository import animal_repository
+        from src.models.Especie.especie_details import EspecieDetails
+
+        especie = self.obter_especie(id_especie)
+        animais = animal_repository.buscar_por_especie(
+            nome_comum=especie.nome_comum,
+            nome_cientifico=especie.nome_cientifico,
+        )
+        return EspecieDetails(
+            id=especie.id,
+            nome_comum=especie.nome_comum,
+            nome_cientifico=especie.nome_cientifico,
+            classe=especie.classe,
+            quantidade_animais=len(animais),
+            animais=animais,
+        )
+
+    def buscar_por_id(self, id_especie: Union[int, str]) -> Optional[Especie]:
+        """[READ] Consulta espécie por ID (retorna None se não encontrada)."""
+        return self.repo.buscar_por_id(id_especie)
 
     def buscar_por_nome_comum(self, nome_comum: str) -> Optional[Especie]:
-        """Consulta espécie pelo nome comum."""
+        """[READ] Consulta espécie pelo nome comum indexado."""
         return self.repo.buscar_por_nome_comum(nome_comum)
 
     def buscar_por_nome_cientifico(self, nome_cientifico: str) -> Optional[Especie]:
-        """Consulta espécie pelo nome científico."""
+        """[READ] Consulta espécie pelo nome científico indexado."""
         return self.repo.buscar_por_nome_cientifico(nome_cientifico)
 
+    def buscar_por_classe(self, classe: Union[Classe, str]) -> List[Especie]:
+        """[READ] Consulta espécies pela classe taxonômica."""
+        classe_canon = self.normalizar_classe(classe)
+        return self.repo.buscar_por_classe(classe_canon)
+
+    def filtrar_especies(
+        self, 
+        nome_comum: Optional[str] = None, 
+        nome_cientifico: Optional[str] = None, 
+        classe: Optional[str] = None
+    ) -> List[Especie]:
+        """
+        [READ] Aplica filtros dinâmicos cruzados. Retorna sempre uma lista.
+        Combina os parâmetros fornecidos como condições 'AND'.
+        """
+        # 1. Filtro por nome científico (maior especificidade)
+        if nome_cientifico:
+            especie = self.buscar_por_nome_cientifico(nome_cientifico)
+            if not especie:
+                return []
+            if nome_comum and especie.nome_comum.casefold() != nome_comum.casefold():
+                return []
+            if classe and especie.classe != self.normalizar_classe(classe):
+                return []
+            return [especie]
+
+        # 2. Filtro por nome comum
+        if nome_comum:
+            especie = self.buscar_por_nome_comum(nome_comum)
+            if not especie:
+                return []
+            if classe and especie.classe != self.normalizar_classe(classe):
+                return []
+            return [especie]
+
+        # 3. Filtro amplo (apenas classe)
+        if classe:
+            try:
+                return self.buscar_por_classe(classe)
+            except ValueError:
+                return [] 
+
+        # Sem filtros, lista tudo
+        return self.listar_especies()
+
     def listar_especies(self) -> List[Especie]:
-        """Lista todas as espécies registradas no repositório."""
+        """[READ] Lista todas as espécies cadastradas no acervo."""
         return self.repo.listar()
+
+    def contar_especies(self) -> int:
+        """[READ] Retorna a quantidade total de espécies cadastradas."""
+        return self.repo.count()
+
+    def atualizar_especie(
+        self,
+        id_especie: Union[int, str],
+        dados_atualizacao: Union[Dict[str, Any], EspecieUpdate],
+    ) -> Especie:
+        """
+        [UPDATE] Atualiza os dados de uma espécie existente com validação taxonômica:
+        - Valida existência prévia.
+        - Formata e normaliza novos dados.
+        - Verifica duplicidade de nome comum contra outras espécies.
+        """
+        especie_atual = self.obter_especie(id_especie)
+
+        if isinstance(dados_atualizacao, EspecieUpdate):
+            dados_novos = dados_atualizacao.model_dump(by_alias=True, exclude_unset=True)
+        else:
+            dados_novos = {k: v for k, v in dados_atualizacao.items() if v is not None}
+
+        nome_comum = dados_novos.get("nome_comum") or dados_novos.get("nome") or especie_atual.nome_comum
+        nome_cient = dados_novos.get("nome_cientifico") or especie_atual.nome_cientifico
+        classe_val = dados_novos.get("classe") or especie_atual.classe
+
+        nome_comum_limpo = str(nome_comum).strip()
+        nome_cient_formatado = self.formatar_nome_cientifico(str(nome_cient))
+        classe_canon = self.normalizar_classe(classe_val)
+
+        # Checa duplicidade caso tenha alterado o nome comum
+        if nome_comum_limpo.casefold() != especie_atual.nome_comum.casefold():
+            existente = self.repo.buscar_por_nome_comum(nome_comum_limpo)
+            if existente and str(existente.id) != str(especie_atual.id):
+                raise ValueError(f"Espécie com nome comum '{nome_comum_limpo}' já cadastrada.")
+
+        especie_modificada = Especie(
+            id=especie_atual.id,
+            nome_comum=nome_comum_limpo,
+            nome_cientifico=nome_cient_formatado,
+            classe=classe_canon,
+        )
+        return self.repo.update(id_especie, especie_modificada)
+
+    def deletar_especie(self, id_especie: Union[int, str]) -> bool:
+        """
+        [DELETE] Remove uma espécie cadastrada no repositório.
+        Lança KeyError se a espécie não for encontrada.
+        """
+        self.obter_especie(id_especie)
+        return self.repo.delete(id_especie)
+
+    # -------------------------------------------------------------------------
+    # RESOLUÇÃO TAXONÔMICA E PARSING:
+    # -------------------------------------------------------------------------
 
     def resolver_especie(
         self,
@@ -228,6 +372,4 @@ class EspecieService:
 
         return total_importados
 
-
-# Instância singleton para uso padrão
 especie_service = EspecieService()
