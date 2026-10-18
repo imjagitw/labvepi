@@ -125,6 +125,34 @@ class TestEtlCarregar(unittest.TestCase):
             {"_id": 1}, {"$set": self.exame_valido}, upsert=True
         )
 
+    def test_validar_documentos_legados_com_defaults_canonicamente(self):
+        """Valida que documentos legados emitidos com valores sentinela/padrão pelo ETL são válidos."""
+        animal_legado = {
+            "animal_id": "LEG_001",
+            "classe": "Mamífero",
+            "nome_comum": "Bugio-preto",
+            "nome_cientifico": "Alouatta caraya",
+            "sexo": "Não Informado",
+            "peso": "Não aferido",
+            "faixa_etaria": "Não Informado",
+            "orgao_origem": "NAO INFORMADO",
+            "local_origem": "Não informado",
+            "regime_vida": "Não informado",
+            "status_vital": "Não Informado",
+        }
+        amostra_legada = {
+            "amostra_id": "LEG_AMS_01",
+            "animal_id": "LEG_001",
+            "material_biologico": "Outro",
+            "status_amostra": "Disponível",
+            "local_coleta_amostra": "Não informado",
+        }
+
+        animais, amostras, exames, erros = validar_documentos([animal_legado], [amostra_legada], [])
+        self.assertEqual(len(animais), 1)
+        self.assertEqual(len(amostras), 1)
+        self.assertEqual(len(erros), 0)
+
 
 if __name__ == "__main__":
     unittest.main()

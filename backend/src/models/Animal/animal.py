@@ -71,6 +71,6 @@ class Animal(BaseModel):
     # ONDE FAZER:
     #   - Camada de Serviços: 'backend/src/services/animal_service.py' (métodos
     #     criar_animal, atualizar_animal e preencher_nao_informados_e_relacionamentos).
-    #   - Camada de Domínio: 'backend/src/domain/normalizacao.py' (funções
+    #   - Camada de Domínio: 'backend/src/utils/normalizacao.py' (funções
     #     decompor_localidade, decompor_peso, decompor_idade).
     # =========================================================================

@@ -54,14 +54,13 @@ class Amostra(BaseModel):
     #      - Converter coordenadas em float decimal, strings com vírgula ('-5,089'),
     #        ou graus sexagesimais DMS (ex: 05°05'21"S) para float decimal WGS84.
     #      - Tratar sentinelas ('-', 'NI') como None.
-    #   3. Normalização Heurística de Enums (Carga Legada):
-    #      - Normalizar termos textuais livres para os Enums estritos
-    #        (MaterialBiologico, StatusAmostra, CondicaoArmazenamento, FaseAmostra, DestinoAmostra)
-    #        apenas quando carga_legada=True. Em novos cadastros, exigir o Enum estrito.
+    #   3. Normalização de Enums:
+    #      - Converter strings recebidas para os Enums estritos correspondentes
+    #        (MaterialBiologico, StatusAmostra, CondicaoArmazenamento, FaseAmostra, DestinoAmostra).
     #
     # ONDE FAZER:
     #   - Camada de Serviços: 'backend/src/services/amostra_service.py' (criar_amostra,
     #     atualizar_amostra e aplicar_obrigatoriedade).
-    #   - Camada de Domínio: 'backend/src/domain/normalizacao.py' (funções
+    #   - Camada de Domínio: 'backend/src/utils/normalizacao.py' (funções
     #     normalizar_data, normalizar_coordenada, normalizar_material_biologico).
     # =========================================================================

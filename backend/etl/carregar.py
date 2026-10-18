@@ -1,6 +1,6 @@
 """
 Carregador Genérico de Dados ETL (LABVEPI / UFPI)
-Lê lotes canônicos gerados em .jsonl, valida schemas com carga_legada=True,
+Lê lotes canônicos gerados em .jsonl, valida diretamente contra os schemas de domínio,
 assegura integridade referencial de vínculos e grava de forma idempotente (upsert)
 exclusivamente contra o banco de dados 'pibit_app_dev'.
 
@@ -22,8 +22,6 @@ from typing import Any, Dict, List, Optional, Set, Tuple, Union
 from src.models.Animal.animal import Animal
 from src.models.Amostra.amostra import Amostra
 from src.models.Exame.exame import Exame
-from src.services.animal_service import animal_service
-from src.services.amostra_service import amostra_service
 
 # Banco de dados estritamente autorizado para cargas do ETL
 BANCO_AUTORIZADO = "pibit_app_dev"
@@ -97,7 +95,7 @@ def validar_documentos(
     exames: List[Dict[str, Any]],
 ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]], List[Dict[str, Any]], List[Dict[str, Any]]]:
     """
-    Valida cada documento contra os schemas de domínio e regras de carga_legada=True.
+    Valida cada documento canônico diretamente contra os schemas de domínio Pydantic.
     Retorna (animais_validos, amostras_validas, exames_validos, erros_validacao).
     """
     erros: List[Dict[str, Any]] = []
@@ -107,10 +105,7 @@ def validar_documentos(
     for doc in animais:
         doc_id = doc.get("animal_id") or doc.get("_id")
         try:
-            # Aplica regras legadas do service
             payload_copy = dict(doc)
-            animal_service.aplicar_obrigatoriedade(payload_copy, carga_legada=True)
-            # Validação pelo model Pydantic
             Animal(**payload_copy)
             animais_validos.append(payload_copy)
         except Exception as e:
@@ -126,7 +121,6 @@ def validar_documentos(
         doc_id = doc.get("amostra_id") or doc.get("_id")
         try:
             payload_copy = dict(doc)
-            amostra_service.aplicar_obrigatoriedade(payload_copy, carga_legada=True)
             Amostra(**payload_copy)
             amostras_validas.append(payload_copy)
         except Exception as e:
@@ -310,7 +304,7 @@ def executar_carga(
         cliente.admin.command("ping")
         db = cliente[BANCO_AUTORIZADO]
 
-    # 3. Validação dos schemas com carga_legada=True
+    # 3. Validação canônica dos schemas diretamente contra Pydantic
     a_val, am_val, ex_val, erros_val = validar_documentos(animais_raw, amostras_raw, exames_raw)
     relatorio.erros_validacao = erros_val
 

@@ -11,7 +11,6 @@ class AnimalCreate(BaseModel):
     como string com unidade ('400g', '2.5kg'), float em kg ou 'Não aferido'.
     A idade pode ser informada estruturada (idade_valor + idade_unidade),
     textual ('6 meses') ou diretamente via faixa_etaria.
-    Cargas legadas (planilhas) chamam o service com carga_legada=True.
     """
     model_config = ConfigDict(populate_by_name=True)
     id: Optional[int] = Field(default=None, alias="_id", description="Chave primária autoincrementada no banco")

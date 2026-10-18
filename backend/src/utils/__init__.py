@@ -6,6 +6,10 @@ from .normalizacao import (
     normalizar_sexo,
     normalizar_status_vital,
     normalizar_material_biologico,
+    normalizar_data,
+    normalizar_coordenada,
+    normalizar_booleano,
+    normalizar_enum,
 )
 
 __all__ = [
@@ -16,4 +20,8 @@ __all__ = [
     "normalizar_sexo",
     "normalizar_status_vital",
     "normalizar_material_biologico",
+    "normalizar_data",
+    "normalizar_coordenada",
+    "normalizar_booleano",
+    "normalizar_enum",
 ]

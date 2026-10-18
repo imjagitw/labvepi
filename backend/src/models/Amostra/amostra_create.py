@@ -9,7 +9,7 @@ class AmostraCreate(BaseModel):
     - Identificação e vínculo obrigatório com o animal de origem.
     - Campos laboratoriais e de rastreamento obrigatórios sem defaults permissivos.
     - Rejeição de valores 'Não informado' e sentinelas é validada em AmostraService.criar_amostra.
-    - Cargas legadas (planilhas) usam AmostraService.criar_amostra(..., carga_legada=True).
+    - Cargas de planilhas são pré-processadas e canonicizadas pelo pipeline de ETL.
     """
     model_config = ConfigDict(populate_by_name=True)
 
@@ -135,10 +135,9 @@ class AmostraCreate(BaseModel):
     #      - Converter strings recebidas de datas ('AAAA-MM-DD', 'DD/MM/AAAA') para datetime.date.
     #      - Converter coordenadas com vírgula ('-5,089') ou DMS (05°05'21"S) para float decimal.
     #      - Tratar sentinelas textuais ('NI', '-', 'Não informado') como None.
-    #   2. Carga Legada Tolerante (carga_legada=True):
-    #      - Em carga_legada=True, normalizar strings livres para os Enums estritos
-    #        via funções de normalização do domínio e preencher campos obrigatórios ausentes.
-    #      - Em carga_legada=False, exigir estritamente valores válidos dos Enums.
+    #   2. Cargas e Normalizações:
+    #      - Assegurar compatibilidade de tipos e enums estritos. Planilhas legadas
+    #        são normalizadas previamente pelos extratores ETL.
     #
     # ONDE FAZER:
     #   - Camada de Serviços: 'backend/src/services/amostra_service.py' (criar_amostra).

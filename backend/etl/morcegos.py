@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 import openpyxl
 
-from src.domain.normalizacao import (
+from src.utils.normalizacao import (
     eh_nao_informado,
     normalizar_peso,
     normalizar_sexo,

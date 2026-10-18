@@ -347,29 +347,13 @@ class TestAnimalService(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.service.criar_animal(dto_ni)
 
-    def test_carga_legada_preenche_nao_informado(self):
-        """Na carga de planilhas antigas, campos ausentes viram 'Não informado'/'Não aferido'."""
-        animal = self.service.criar_animal(
-            {"animal_id": "LEG_001", "nome_comum": "Bugio-preto", "peso": "NI", "sexo": "-"},
-            carga_legada=True,
-        )
-        self.assertEqual(animal.sexo, Sexo.NAO_INFORMADO)
-        self.assertEqual(animal.peso, "Não aferido")
-        self.assertEqual(animal.faixa_etaria, FaixaEtaria.NAO_INFORMADO)
-        self.assertEqual(animal.orgao_origem, Orgao.NAO_INFORMADO)
-        self.assertEqual(animal.local_origem, "Não informado")
-        self.assertEqual(animal.regime_vida, RegimeVida.NAO_INFORMADO)
-        self.assertEqual(animal.status_vital, StatusVital.NAO_INFORMADO)
-        self.assertEqual(animal.classe, Classe.MAMIFERO)
-
-    def test_update_rejeita_obrigatorio_vazio_mas_permite_parcial_em_legado(self):
-        """Update parcial: campos enviados são validados; legado incompleto pode ser editado aos poucos."""
+    def test_update_parcial_rejeita_obrigatorio_vazio(self):
+        """Update parcial: campos enviados são validados estritamente."""
         self.service.criar_animal(
-            {"animal_id": "LEG_002", "nome_comum": "Bugio-preto"}, carga_legada=True
+            self._dados_completos(animal_id="LEG_002", sexo=Sexo.MACHO)
         )
         atualizado = self.service.atualizar_animal("LEG_002", {"sexo": Sexo.FEMEA})
         self.assertEqual(atualizado.sexo, Sexo.FEMEA)
-        self.assertEqual(atualizado.status_vital, StatusVital.NAO_INFORMADO)
 
         with self.assertRaises(ValueError):
             self.service.atualizar_animal("LEG_002", {"sexo": Sexo.NAO_INFORMADO})

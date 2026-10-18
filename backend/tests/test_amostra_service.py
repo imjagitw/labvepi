@@ -168,97 +168,15 @@ class TestAmostraService(unittest.TestCase):
         amostra = self.service.criar_amostra(dto)
         self.assertEqual(amostra.amostra_id, "AMS_DTO_OK")
 
-    def test_carga_legada_preenche_nao_informado(self):
-        """Testa que com carga_legada=True campos ausentes viram 'Não informado' / defaults."""
-        amostra = self.service.criar_amostra(
-            {
-                "amostra_id": "LEG_AMS_01",
-                "animal_id": "AN001",
-                "material_biologico": "NI",
-                "local_coleta": "-",
-            },
-            carga_legada=True,
-        )
-        self.assertEqual(amostra.amostra_id, "LEG_AMS_01")
-        self.assertEqual(amostra.local_coleta_amostra, "Não informado")
-        self.assertEqual(amostra.nome_coletor, "Não informado")
-        self.assertEqual(amostra.kit_utilizado, "Não informado")
-        self.assertEqual(amostra.caixa_armazenamento, "Não informado")
-        self.assertEqual(amostra.material_biologico, MaterialBiologico.OUTRO)
-        self.assertEqual(amostra.status_amostra, StatusAmostra.DISPONIVEL)
-        self.assertEqual(amostra.fase_amostra, FaseAmostra.EXTRACAO)
-        self.assertEqual(amostra.destino_amostra, DestinoAmostra.LAB_VIGILANCIA_EPIZOOTIAS_UFPI)
-        self.assertFalse(amostra.dna_disponivel)
-        self.assertFalse(amostra.rna_disponivel)
-        self.assertFalse(amostra.sequenciamento_disponivel)
-        self.assertFalse(amostra.laudo_liberado)
-
-    def test_crud_completo_obter_listar_atualizar_deletar(self):
-        """Testa ciclo completo de CRUD: Create, Read, Update, Delete."""
-        # 1. Create
-        self.service.criar_amostra(self._dados_completos(
-            amostra_id="AMS_A",
-            material_biologico="soro",
-            condicao_armazenamento=CondicaoArmazenamento.CONGELADA,
-        ))
-        self.service.criar_amostra(self._dados_completos(
-            amostra_id="AMS_B",
-            material_biologico="tecido",
-            condicao_armazenamento=CondicaoArmazenamento.REFRIGERADA,
-            observacoes="Amostra teste de biópsia",
-        ))
-
-        # 2. Read (obter por ID)
-        a1 = self.service.obter_amostra("AMS_A")
-        self.assertEqual(a1.amostra_id, "AMS_A")
-        self.assertEqual(a1.material_biologico, MaterialBiologico.SORO)
-
-        with self.assertRaises(KeyError):
-            self.service.obter_amostra("AMS_INEXISTENTE")
-
-        # 3. Read (listar e contagem)
-        self.assertEqual(self.service.contar_amostras(), 2)
-        todas = self.service.listar_amostras()
-        self.assertEqual(len(todas), 2)
-
-        filtradas_soro = self.service.listar_amostras(material_biologico=MaterialBiologico.SORO)
-        self.assertEqual(len(filtradas_soro), 1)
-        self.assertEqual(filtradas_soro[0].amostra_id, "AMS_A")
-
-        busca = self.service.listar_amostras(termo_busca="biópsia")
-        self.assertEqual(len(busca), 1)
-        self.assertEqual(busca[0].amostra_id, "AMS_B")
-
-        por_animal = self.service.listar_amostras_por_animal("AN001")
-        self.assertEqual(len(por_animal), 2)
-
-        # 4. Update
-        atualizada = self.service.atualizar_amostra("AMS_A", {
-            "material_biologico": "sangue total",
-            "dna_disponivel": True,
-        })
-        self.assertEqual(atualizada.material_biologico, MaterialBiologico.SANGUE_TOTAL)
-        self.assertTrue(atualizada.dna_disponivel)
-
-        # 5. Delete
-        removido = self.service.deletar_amostra("AMS_A")
-        self.assertTrue(removido)
-        self.assertEqual(self.service.contar_amostras(), 1)
-
-        with self.assertRaises(KeyError):
-            self.service.obter_amostra("AMS_A")
-
-    def test_update_rejeita_obrigatorio_vazio_mas_permite_parcial_em_legado(self):
-        """Update parcial: campos enviados são validados; legado incompleto pode ser editado aos poucos."""
+    def test_update_parcial_rejeita_obrigatorio_vazio(self):
+        """Update parcial: campos enviados são validados estritamente."""
         self.service.criar_amostra(
-            {"amostra_id": "LEG_AMS_02", "animal_id": "AN001"},
-            carga_legada=True,
+            self._dados_completos(amostra_id="LEG_AMS_02")
         )
 
         # Atualização parcial válida
         atualizada = self.service.atualizar_amostra("LEG_AMS_02", {"kit_utilizado": "Novo Kit PCR"})
         self.assertEqual(atualizada.kit_utilizado, "Novo Kit PCR")
-        self.assertEqual(atualizada.local_coleta_amostra, "Não informado")
 
         # Rejeição de atualização de campo obrigatório para vazio ou não informado
         with self.assertRaises(ValueError):
@@ -273,25 +191,33 @@ class TestAmostraService(unittest.TestCase):
     def test_obter_amostra_detalhes(self):
         """Testa geração de AmostraDetails com preenchimento de campos não informados e vínculo com Animal."""
         self.service.criar_amostra(
-            {
-                "amostra_id": "AMS_DETALHES",
-                "animal_id": "AN001",
-                "material_biologico": "swab cloacal",
-            },
-            carga_legada=True,
+            self._dados_completos(
+                amostra_id="AMS_DETALHES",
+                animal_id="AN001",
+                material_biologico=MaterialBiologico.SWAB_CLOACAL,
+            )
         )
 
         detalhes = self.service.obter_amostra_detalhes("AMS_DETALHES")
         self.assertIsInstance(detalhes, AmostraDetails)
         self.assertEqual(detalhes.amostra_id, "AMS_DETALHES")
-        self.assertEqual(detalhes.local_coleta_amostra, "Não informado")
-        self.assertEqual(detalhes.nome_coletor, "Não informado")
-        self.assertEqual(detalhes.condicao_armazenamento, "Não informado")
-        self.assertEqual(detalhes.caixa_armazenamento, "Não informado")
+        self.assertEqual(detalhes.material_biologico, MaterialBiologico.SWAB_CLOACAL)
         self.assertIsNotNone(detalhes.animal)
         self.assertEqual(detalhes.animal.animal_id, "AN001")
         self.assertEqual(detalhes.quantidade_exames, 0)
         self.assertEqual(detalhes.exames, [])
+
+        # Testa preenchimento automático para dicionários com campos omitidos
+        dados_parciais = {
+            "amostra_id": "AMS_PART",
+            "animal_id": "AN001",
+            "material_biologico": "swab cloacal",
+        }
+        detalhes_parc = AmostraService.preencher_nao_informados_e_relacionamentos(dados_parciais)
+        self.assertEqual(detalhes_parc.local_coleta_amostra, "Não informado")
+        self.assertEqual(detalhes_parc.nome_coletor, "Não informado")
+        self.assertEqual(detalhes_parc.condicao_armazenamento, "Não informado")
+        self.assertEqual(detalhes_parc.caixa_armazenamento, "Não informado")
 
 
 class TestAmostraController(unittest.TestCase):

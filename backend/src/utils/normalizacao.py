@@ -615,3 +615,43 @@ def decompor_localidade(
 
     return mun, sigla_uf, detalhe, local_origem_composto
 
+
+def normalizar_booleano(valor: Any) -> Optional[bool]:
+    """
+    Normaliza valores heterogêneos para bool estrito (True/False) ou None.
+    Reconhece:
+    - Booleanos: True, False
+    - Inteiros/Floats: 1 -> True, 0 -> False
+    - Strings em pt/en: 'sim', 's', 'true', 'yes', 'y', '1' -> True
+                        'nao', 'não', 'n', 'false', 'no', '0' -> False
+    - Nulos e sentinelas -> None
+    """
+    if isinstance(valor, bool):
+        return valor
+    if isinstance(valor, (int, float)):
+        return bool(valor)
+    if isinstance(valor, str):
+        v = valor.strip().casefold()
+        if v in {"sim", "s", "true", "1", "t", "yes", "y"}:
+            return True
+        if v in {"nao", "não", "n", "false", "0", "f", "no"}:
+            return False
+    return None
+
+
+def normalizar_enum(enum_cls: Any, valor: Any, default: Any = None) -> Any:
+    """
+    Normaliza entradas heterogêneas (strings, enum members) para o Enum canônico.
+    Compara de forma case-insensitive contra o .value e o .name de cada membro.
+    Retorna `default` se o valor for nulo/vazio ou sentinela não informado.
+    """
+    if isinstance(valor, enum_cls) or valor is None:
+        return valor
+    if eh_nao_informado(valor):
+        return default
+    v_limpo = str(valor).strip().casefold()
+    for item in enum_cls:
+        if item.value.casefold() == v_limpo or item.name.casefold() == v_limpo:
+            return item
+    return valor
+

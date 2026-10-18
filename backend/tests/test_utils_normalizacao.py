@@ -1,6 +1,6 @@
 import unittest
 
-from src.domain.normalizacao import (
+from src.utils.normalizacao import (
     eh_nao_informado,
     normalizar_peso,
     validar_peso,
@@ -15,7 +15,7 @@ from src.models.Animal.enums.FaixaEtaria import FaixaEtaria
 from src.models.Amostra.enums.MaterialBiologico import MaterialBiologico
 
 
-class TestDomainNormalizacao(unittest.TestCase):
+class TestUtilsNormalizacao(unittest.TestCase):
     def test_eh_nao_informado(self):
         self.assertTrue(eh_nao_informado(None))
         self.assertTrue(eh_nao_informado(""))
@@ -99,7 +99,7 @@ class TestDomainNormalizacao(unittest.TestCase):
 
 
     def test_normalizar_unidades(self):
-        from src.domain.normalizacao import normalizar_unidade_peso, normalizar_unidade_idade
+        from src.utils.normalizacao import normalizar_unidade_peso, normalizar_unidade_idade
         from src.models.Animal.enums.UnidadePeso import UnidadePeso
         from src.models.Animal.enums.UnidadeIdade import UnidadeIdade
 
@@ -127,7 +127,7 @@ class TestDomainNormalizacao(unittest.TestCase):
         self.assertIsNone(normalizar_unidade_idade(None))
 
     def test_decompor_peso(self):
-        from src.domain.normalizacao import decompor_peso
+        from src.utils.normalizacao import decompor_peso
         from src.models.Animal.enums.UnidadePeso import UnidadePeso
 
         # Explícito com valor e unidade
@@ -146,7 +146,7 @@ class TestDomainNormalizacao(unittest.TestCase):
         self.assertEqual(decompor_peso(peso_bruto=None), ("Não aferido", None, None))
 
     def test_decompor_idade_e_deducao(self):
-        from src.domain.normalizacao import decompor_idade, deduzir_faixa_etaria
+        from src.utils.normalizacao import decompor_idade, deduzir_faixa_etaria
         from src.models.Animal.enums.UnidadeIdade import UnidadeIdade
         from src.models.Animal.enums.FaixaEtaria import FaixaEtaria
 
@@ -169,7 +169,7 @@ class TestDomainNormalizacao(unittest.TestCase):
 
     def test_normalizar_data(self):
         from datetime import date
-        from src.domain.normalizacao import normalizar_data
+        from src.utils.normalizacao import normalizar_data
 
         # Objetos date
         self.assertEqual(normalizar_data(date(2022, 1, 28)), date(2022, 1, 28))
@@ -193,7 +193,7 @@ class TestDomainNormalizacao(unittest.TestCase):
             normalizar_data(None, permitir_none=False)
 
     def test_normalizar_coordenada(self):
-        from src.domain.normalizacao import normalizar_coordenada
+        from src.utils.normalizacao import normalizar_coordenada
 
         # Decimal direto
         self.assertEqual(normalizar_coordenada(-5.089, eh_latitude=True), -5.089)
@@ -218,7 +218,7 @@ class TestDomainNormalizacao(unittest.TestCase):
             normalizar_coordenada(-190.0, eh_latitude=False)
 
     def test_decompor_localidade(self):
-        from src.domain.normalizacao import decompor_localidade
+        from src.utils.normalizacao import decompor_localidade
 
         # Composto com barra "Municipio/UF"
         mun, uf, det, comp = decompor_localidade(local_origem="Teresina/PI")
@@ -251,6 +251,40 @@ class TestDomainNormalizacao(unittest.TestCase):
         self.assertEqual(mun, "Floriano")
         self.assertIsNone(uf)
         self.assertEqual(comp, "Floriano")
+
+
+    def test_normalizar_booleano(self):
+        from src.utils.normalizacao import normalizar_booleano
+
+        self.assertTrue(normalizar_booleano(True))
+        self.assertTrue(normalizar_booleano("Sim"))
+        self.assertTrue(normalizar_booleano("s"))
+        self.assertTrue(normalizar_booleano("true"))
+        self.assertTrue(normalizar_booleano("1"))
+        self.assertTrue(normalizar_booleano(1))
+
+        self.assertFalse(normalizar_booleano(False))
+        self.assertFalse(normalizar_booleano("Não"))
+        self.assertFalse(normalizar_booleano("nao"))
+        self.assertFalse(normalizar_booleano("n"))
+        self.assertFalse(normalizar_booleano("false"))
+        self.assertFalse(normalizar_booleano("0"))
+        self.assertFalse(normalizar_booleano(0))
+
+        self.assertIsNone(normalizar_booleano(None))
+        self.assertIsNone(normalizar_booleano(""))
+        self.assertIsNone(normalizar_booleano("desconhecido"))
+
+    def test_normalizar_enum(self):
+        from src.utils.normalizacao import normalizar_enum
+        from src.models.Amostra import CondicaoArmazenamento, StatusAmostra
+
+        self.assertEqual(normalizar_enum(StatusAmostra, StatusAmostra.DISPONIVEL), StatusAmostra.DISPONIVEL)
+        self.assertEqual(normalizar_enum(StatusAmostra, "Disponível"), StatusAmostra.DISPONIVEL)
+        self.assertEqual(normalizar_enum(StatusAmostra, "disponivel"), StatusAmostra.DISPONIVEL)
+        self.assertEqual(normalizar_enum(StatusAmostra, "DISPONIVEL"), StatusAmostra.DISPONIVEL)
+        self.assertEqual(normalizar_enum(StatusAmostra, "NI", default=StatusAmostra.DISPONIVEL), StatusAmostra.DISPONIVEL)
+        self.assertIsNone(normalizar_enum(CondicaoArmazenamento, None, default=None))
 
 
 if __name__ == "__main__":
