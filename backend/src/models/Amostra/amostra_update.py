@@ -1,5 +1,5 @@
 from datetime import date
-from typing import Optional, Union
+from typing import Optional
 from pydantic import BaseModel, ConfigDict, Field
 from src.models.Amostra import MaterialBiologico, FaseAmostra, StatusAmostra, DestinoAmostra, CondicaoArmazenamento
 
@@ -32,7 +32,7 @@ class AmostraUpdate(BaseModel):
     )
 
     # Tipo / Material biológico coletado
-    material_biologico: Optional[Union[MaterialBiologico, str]] = Field(
+    material_biologico: Optional[MaterialBiologico] = Field(
         default=None,
         alias='metodo_coleta',      
         description="Material biológico coletado"
@@ -102,11 +102,11 @@ class AmostraUpdate(BaseModel):
     )
     longitude: Optional[float] = Field(
         default=None,
-        description="Coordenada de longitude do ponto de coleta"
+        description="Coordenada de longitude do ponto de coleta (decimal WGS84)"
     )
     latitude: Optional[float] = Field(
         default=None,
-        description="Coordenada de latitude do ponto de coleta"
+        description="Coordenada de latitude do ponto de coleta (decimal WGS84)"
     )
     amostra_observacoes: Optional[str] = Field(
         default=None,
@@ -119,3 +119,17 @@ class AmostraUpdate(BaseModel):
         default=False,
         description="Confirmação explícita para atualização da amostra"
     )
+
+    # =========================================================================
+    # AÇÕES / VALIDAÇÕES / SERVICES RETIRADOS DESTE MODEL:
+    # -------------------------------------------------------------------------
+    # O QUE FAZER:
+    #   1. Parsing de Datas e Coordenadas:
+    #      - Converter strings parciais de datas ou coordenadas para seus tipos canônicos.
+    #   2. Validação e Normalização de Enums em Atualização:
+    #      - Validar/normalizar Enums enviados antes de mesclar com a entidade existente.
+    #
+    # ONDE FAZER:
+    #   - Camada de Serviços: 'backend/src/services/amostra_service.py' (atualizar_amostra).
+    #   - Camada de Controladores: 'backend/src/controllers/amostra_controller.py'.
+    # =========================================================================

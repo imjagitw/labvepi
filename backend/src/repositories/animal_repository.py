@@ -7,6 +7,8 @@ from src.models.Animal import (
     Orgao,
     Funcao,
     FaixaEtaria,
+    UnidadePeso,
+    UnidadeIdade,
 )
 from src.models.Especie import Classe
 
@@ -40,6 +42,8 @@ class AnimalRepository:
         self._por_regime_vida: Dict[RegimeVida, List[Animal]] = {}
         self._por_status_vital: Dict[StatusVital, List[Animal]] = {}
         self._por_funcao: Dict[Funcao, List[Animal]] = {}
+        self._por_peso_unidade: Dict[UnidadePeso, List[Animal]] = {}
+        self._por_idade_unidade: Dict[UnidadeIdade, List[Animal]] = {}
         self._proximo_id: int = 1
 
         for animal in animais or []:
@@ -79,6 +83,10 @@ class AnimalRepository:
         self._por_status_vital.setdefault(animal.status_vital, []).append(animal)
         if animal.funcao:
             self._por_funcao.setdefault(animal.funcao, []).append(animal)
+        if animal.peso_unidade:
+            self._por_peso_unidade.setdefault(animal.peso_unidade, []).append(animal)
+        if animal.idade_unidade:
+            self._por_idade_unidade.setdefault(animal.idade_unidade, []).append(animal)
 
     def _desindexar(self, animal: Animal) -> None:
         chave_lab = animal.animal_id.strip()
@@ -111,6 +119,8 @@ class AnimalRepository:
             self._por_regime_vida.get(animal.regime_vida),
             self._por_status_vital.get(animal.status_vital),
             self._por_funcao.get(animal.funcao) if animal.funcao else None,
+            self._por_peso_unidade.get(animal.peso_unidade) if animal.peso_unidade else None,
+            self._por_idade_unidade.get(animal.idade_unidade) if animal.idade_unidade else None,
         ]
         for lista in colecoes:
             if lista and animal in lista:
@@ -236,6 +246,27 @@ class AnimalRepository:
     def buscar_por_funcao(self, funcao: Funcao) -> List[Animal]:
         return list(self._por_funcao.get(funcao, []))
 
+    def buscar_por_unidade_peso(self, unidade_peso: UnidadePeso) -> List[Animal]:
+        return list(self._por_peso_unidade.get(unidade_peso, []))
+
+    def buscar_por_unidade_idade(self, unidade_idade: UnidadeIdade) -> List[Animal]:
+        return list(self._por_idade_unidade.get(unidade_idade, []))
+
+    def buscar_por_faixa_peso(
+        self,
+        min_kg: Optional[float] = None,
+        max_kg: Optional[float] = None,
+    ) -> List[Animal]:
+        resultado = []
+        for a in self._por_animal_id.values():
+            if isinstance(a.peso, (int, float)):
+                if min_kg is not None and a.peso < min_kg:
+                    continue
+                if max_kg is not None and a.peso > max_kg:
+                    continue
+                resultado.append(a)
+        return resultado
+
     def buscar_por_especie(
         self,
         nome_comum: Optional[str] = None,
@@ -315,6 +346,8 @@ class AnimalRepository:
         self._por_regime_vida.clear()
         self._por_status_vital.clear()
         self._por_funcao.clear()
+        self._por_peso_unidade.clear()
+        self._por_idade_unidade.clear()
         self._proximo_id = 1
 
 animal_repository = AnimalRepository()

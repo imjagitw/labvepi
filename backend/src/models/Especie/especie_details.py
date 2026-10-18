@@ -21,3 +21,17 @@ class EspecieDetails(BaseModel):
     classe: Classe
     quantidade_animais: int = Field(..., description="Quantidade total de animais cadastrados desta espécie")
     animais: List[Animal] = Field(default_factory=list, description="Lista dos animais pertencentes a esta espécie")
+
+    # =========================================================================
+    # AÇÕES / VALIDAÇÕES / SERVICES RETIRADOS DESTE MODEL:
+    # -------------------------------------------------------------------------
+    # O QUE FAZER:
+    #   1. Agregação e Relacionamentos:
+    #      - Consultar e associar a listagem completa de animais cadastrados pertencentes
+    #        a esta espécie via AnimalRepository / AnimalService.
+    #      - Computar 'quantidade_animais' como o total de animais vinculados.
+    #
+    # ONDE FAZER:
+    #   - Camada de Serviços: 'backend/src/services/especie_service.py' (obter_especie_detalhes).
+    #   - Camada de Controladores: 'backend/src/controllers/especie_controller.py'.
+    # =========================================================================

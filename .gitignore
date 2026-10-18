@@ -22,6 +22,7 @@ secrets.toml
 # Saídas e relatórios locais
 streamlit/scripts/docs/
 streamlit/scripts/resultados/
+backend/etl/saida/
 
 # Planilhas base
 planilhas/

@@ -2,13 +2,7 @@ from enum import Enum
 from datetime import datetime
 from typing import Optional, Union
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
-
-class Perfil(str, Enum):
-    DOCENTE = "docente"
-    POS_GRADUANDO = "pos_graduando"
-    BOLSISTA_PIBITI = "bolsista_pibiti"
-    BOLSISTA_PIBIC = "bolsista_pibic"
-    BOLSISTA_EXTERNO = "bolsista_externo"
+from src.models.Usuario.enums.Perfil import Perfil
 
 class Usuario(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
@@ -19,9 +13,9 @@ class Usuario(BaseModel):
     email: EmailStr
     password: str = Field(..., alias="senha") # adicionar segurança
     created_at: datetime = Field(default_factory=datetime.now)
-    last_login: Optional[Union[datetime, str]] = Field(default=None) # nasce como 'Nunca' / None
+    last_login: Optional[datetime] = Field(default=None, description="Data e hora do último acesso")
     perfil: Perfil
-    matricula: Optional[Union[int, str]] = None
+    matricula: Optional[str] = Field(default=None, description="Matrícula institucional padronizada como texto")
 
     # =========================================================================
     # AÇÕES / VALIDAÇÕES / SERVICES RETIRADOS DESTE MODEL:
@@ -35,6 +29,15 @@ class Usuario(BaseModel):
     #        * 'bolsista_pibiti', 'bolsista_pibit', 'pibit', 'pibiti' -> Perfil.BOLSISTA_PIBITI
     #        * 'bolsista_pibic', 'pibic' -> Perfil.BOLSISTA_PIBIC
     #        * 'bolsista_externo', 'externo' -> Perfil.BOLSISTA_EXTERNO
+    #
+    #   2. Padronização de 'matricula':
+    #      - Converter inteiros ou strings recebidas para string limpa (evitando perda de zeros à esquerda).
+    #      - Tratar sentinelas ("-", "NI", "None", "") como None.
+    #
+    #   3. Normalização de 'last_login':
+    #      - Converter string literal "Nunca", sentinelas ou vazios para None.
+    #      - Fazer parsing de strings de data/hora ISO ou datetime válido.
+    #      - A formatação amigável ("Nunca") deve ser provida apenas na camada de apresentação (UI).
     #
     # ONDE FAZER:
     #   - Camada de Serviços: 'backend/src/services/usuario_service.py' (ou

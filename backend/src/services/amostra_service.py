@@ -1,3 +1,5 @@
+from datetime import date
+from enum import Enum
 from typing import Optional, Union, List, Dict, Any
 from src.models.Amostra import (
     Amostra,
@@ -13,6 +15,95 @@ from src.models.Amostra import (
 from src.models.Animal import Animal
 from src.models.Exame.exame import Exame
 from src.repositories.amostra_repository import AmostraRepository, amostra_repository
+from src.domain.normalizacao import (
+    eh_nao_informado,
+    normalizar_material_biologico,
+    normalizar_data,
+    normalizar_coordenada,
+)
+
+# Valores (normalizados em minúsculo) tratados como "vazio / não informado".
+_VALORES_NAO_INFORMADOS = {
+    "", "-", "ni", "none", "null", "n/a", "na",
+    "não informado", "nao informado",
+}
+
+# Aliases aceitos na entrada -> nome canônico do campo no model Amostra.
+_ALIASES_AMOSTRA = {
+    "animal": "animal_id",
+    "data_coleta": "data_coleta_amostra",
+    "data_recebimento": "data_entrega",
+    "metodo_coleta": "material_biologico",
+    "local_coleta": "local_coleta_amostra",
+    "condicao_amostra": "condicao_armazenamento",
+    "caixa": "caixa_armazenamento",
+    "sequenciamento": "sequenciamento_disponivel",
+    "observacoes": "amostra_observacoes",
+}
+
+# Rótulos amigáveis para mensagens de erro
+_ROTULOS_CAMPOS = {
+    "amostra_id": "ID da amostra (_id)",
+    "animal_id": "animal vinculado (animal)",
+    "data_coleta_amostra": "data de coleta (data_coleta)",
+    "material_biologico": "material biológico (metodo_coleta)",
+    "kit_utilizado": "kit utilizado",
+    "status_amostra": "status da amostra",
+    "laudo_liberado": "laudo liberado",
+    "local_coleta_amostra": "local de coleta (local_coleta)",
+    "nome_coletor": "nome do coletor",
+    "condicao_armazenamento": "condição de armazenamento",
+    "fase_amostra": "fase da amostra",
+    "destino_amostra": "destino da amostra",
+    "caixa_armazenamento": "caixa de armazenamento (caixa)",
+    "dna_disponivel": "DNA disponível",
+    "rna_disponivel": "RNA disponível",
+    "sequenciamento_disponivel": "sequenciamento disponível (sequenciamento)",
+}
+
+# Campos booleanos obrigatórios
+_CAMPOS_BOOLEANOS = {
+    "laudo_liberado",
+    "dna_disponivel",
+    "rna_disponivel",
+    "sequenciamento_disponivel",
+}
+
+# Lista dos campos obrigatórios da entidade Amostra
+_CAMPOS_OBRIGATORIOS_AMOSTRA = [
+    "data_coleta_amostra",
+    "material_biologico",
+    "kit_utilizado",
+    "status_amostra",
+    "laudo_liberado",
+    "local_coleta_amostra",
+    "nome_coletor",
+    "condicao_armazenamento",
+    "fase_amostra",
+    "destino_amostra",
+    "caixa_armazenamento",
+    "dna_disponivel",
+    "rna_disponivel",
+    "sequenciamento_disponivel",
+]
+
+# Valores padrão aplicados durante a carga de planilhas legadas
+_PADRAO_LEGADO_AMOSTRA: Dict[str, Any] = {
+    "data_coleta_amostra": date.today,
+    "material_biologico": MaterialBiologico.OUTRO,
+    "kit_utilizado": "Não informado",
+    "status_amostra": StatusAmostra.DISPONIVEL,
+    "laudo_liberado": False,
+    "local_coleta_amostra": "Não informado",
+    "nome_coletor": "Não informado",
+    "condicao_armazenamento": None,
+    "fase_amostra": FaseAmostra.EXTRACAO,
+    "destino_amostra": DestinoAmostra.LAB_VIGILANCIA_EPIZOOTIAS_UFPI,
+    "caixa_armazenamento": "Não informado",
+    "dna_disponivel": False,
+    "rna_disponivel": False,
+    "sequenciamento_disponivel": False,
+}
 
 
 class AmostraService:
@@ -71,82 +162,202 @@ class AmostraService:
     # -------------------------------------------------------------------------
     @staticmethod
     def normalizar_material_biologico(valor: Union[MaterialBiologico, str]) -> Union[MaterialBiologico, str]:
-        """
-        Normaliza strings recebidas de planilhas/formulários para o Enum canônico MaterialBiologico.
-        Prioriza termos mais específicos antes de genéricos (ex: 'swab oral e cloacal' antes de 'swab oral').
-        """
-        if isinstance(valor, MaterialBiologico):
+        """Normaliza strings recebidas de planilhas/formulários para o Enum canônico MaterialBiologico."""
+        return normalizar_material_biologico(valor)
+
+    @staticmethod
+    def _normalizar_chaves(payload: Dict[str, Any]) -> Dict[str, Any]:
+        """Converte aliases (animal, local_coleta, etc.) para os nomes canônicos."""
+        normalizado: Dict[str, Any] = {}
+        for chave, valor in payload.items():
+            canonica = _ALIASES_AMOSTRA.get(chave, chave)
+            if canonica in normalizado and chave != canonica:
+                continue
+            normalizado[canonica] = valor
+        return normalizado
+
+    @staticmethod
+    def _eh_nao_informado(valor: Any) -> bool:
+        """True se o valor é nulo, vazio ou um sentinela 'Não informado'."""
+        return eh_nao_informado(valor)
+
+    @staticmethod
+    def _converter_booleano(val: Any) -> Optional[bool]:
+        """Converte strings (ex: 'Sim'/'Não', 'True'/'False') ou números para booleano estrito."""
+        if isinstance(val, bool):
+            return val
+        if isinstance(val, (int, float)):
+            return bool(val)
+        if isinstance(val, str):
+            v = val.strip().lower()
+            if v in ("sim", "s", "true", "1", "t", "yes", "y"):
+                return True
+            if v in ("nao", "não", "n", "false", "0", "f", "no"):
+                return False
+        return None
+
+    @staticmethod
+    def normalizar_condicao_armazenamento(valor: Any) -> Any:
+        if isinstance(valor, CondicaoArmazenamento) or valor is None:
             return valor
-        if not valor:
-            return MaterialBiologico.OUTRO
-
+        if eh_nao_informado(valor):
+            return None
         v_limpo = str(valor).strip().casefold()
-
-        # Mapeamento ordenado por especificidade (termos mais longos primeiro)
-        termos_ordenados = [
-            ("swab oral e cloacal", MaterialBiologico.SWAB_ORAL_CLOACAL),
-            ("oral e cloacal", MaterialBiologico.SWAB_ORAL_CLOACAL),
-            ("swab traqueal", MaterialBiologico.SWAB_TRAQUEAL),
-            ("swab cloacal", MaterialBiologico.SWAB_CLOACAL),
-            ("swab ocular", MaterialBiologico.SWAB_OCULAR),
-            ("swab retal", MaterialBiologico.SWAB_RETAL),
-            ("swab nasal", MaterialBiologico.SWAB_NASAL),
-            ("swab oral", MaterialBiologico.SWAB_ORAL),
-            ("esfregaço sanguíneo", MaterialBiologico.ESFREGACO_SANGUINEO),
-            ("esfregaco sanguineo", MaterialBiologico.ESFREGACO_SANGUINEO),
-            ("esfregaço", MaterialBiologico.ESFREGACO_SANGUINEO),
-            ("esfregaco", MaterialBiologico.ESFREGACO_SANGUINEO),
-            ("pool de tecidos", MaterialBiologico.POOL_TECIDOS),
-            ("sangue (edta)", MaterialBiologico.SANGUE_EDTA),
-            ("sangue total", MaterialBiologico.SANGUE_TOTAL),
-            ("sangue edta", MaterialBiologico.SANGUE_EDTA),
-            ("papel filtro", MaterialBiologico.PAPEL_FILTRO),
-            ("papel-filtro", MaterialBiologico.PAPEL_FILTRO),
-            ("filtro", MaterialBiologico.PAPEL_FILTRO),
-            ("edta", MaterialBiologico.SANGUE_EDTA),
-            ("sangue", MaterialBiologico.SANGUE),
-            ("soro", MaterialBiologico.SORO),
-            ("órgãos", MaterialBiologico.ORGAOS),
-            ("orgaos", MaterialBiologico.ORGAOS),
-            ("órgão", MaterialBiologico.ORGAOS),
-            ("orgao", MaterialBiologico.ORGAOS),
-            ("tecido", MaterialBiologico.TECIDO),
-            ("baço", MaterialBiologico.BACO),
-            ("baco", MaterialBiologico.BACO),
-            ("fígado", MaterialBiologico.FIGADO),
-            ("figado", MaterialBiologico.FIGADO),
-            ("pulmão", MaterialBiologico.PULMAO),
-            ("pulmao", MaterialBiologico.PULMAO),
-            ("rim", MaterialBiologico.RIM),
-            ("rins", MaterialBiologico.RIM),
-            ("encéfalo", MaterialBiologico.ENCEFALO),
-            ("encefalo", MaterialBiologico.ENCEFALO),
-            ("cérebro", MaterialBiologico.ENCEFALO),
-            ("cerebro", MaterialBiologico.ENCEFALO),
-            ("coração", MaterialBiologico.CORACAO),
-            ("coracao", MaterialBiologico.CORACAO),
-            ("fezes", MaterialBiologico.FEZES),
-            ("enema", MaterialBiologico.ENEMA),
-            ("líquor", MaterialBiologico.LIQUOR),
-            ("liquor", MaterialBiologico.LIQUOR),
-            ("lcr", MaterialBiologico.LIQUOR),
-            ("ectoparasita", MaterialBiologico.ECTOPARASITA),
-            ("pele", MaterialBiologico.PELE),
-            ("pelo", MaterialBiologico.PELO),
-            ("necrópsia", MaterialBiologico.NECROPSIA),
-            ("necropsia", MaterialBiologico.NECROPSIA),
-            ("outro", MaterialBiologico.OUTRO),
-        ]
-
-        for termo, enum_item in termos_ordenados:
-            if termo in v_limpo:
-                return enum_item
-
-        for m in MaterialBiologico:
-            if m.value.casefold() == v_limpo:
-                return m
-
+        for item in CondicaoArmazenamento:
+            if item.value.casefold() == v_limpo or item.name.casefold() == v_limpo:
+                return item
         return valor
+
+    @staticmethod
+    def normalizar_fase_amostra(valor: Any) -> Any:
+        if isinstance(valor, FaseAmostra) or valor is None:
+            return valor
+        if eh_nao_informado(valor):
+            return FaseAmostra.EXTRACAO
+        v_limpo = str(valor).strip().casefold()
+        for item in FaseAmostra:
+            if item.value.casefold() == v_limpo or item.name.casefold() == v_limpo:
+                return item
+        return valor
+
+    @staticmethod
+    def normalizar_destino_amostra(valor: Any) -> Any:
+        if isinstance(valor, DestinoAmostra) or valor is None:
+            return valor
+        if eh_nao_informado(valor):
+            return DestinoAmostra.LAB_VIGILANCIA_EPIZOOTIAS_UFPI
+        v_limpo = str(valor).strip().casefold()
+        for item in DestinoAmostra:
+            if item.value.casefold() == v_limpo or item.name.casefold() == v_limpo:
+                return item
+        return valor
+
+    @staticmethod
+    def normalizar_status_amostra(valor: Any) -> Any:
+        if isinstance(valor, StatusAmostra) or valor is None:
+            return valor
+        if eh_nao_informado(valor):
+            return StatusAmostra.DISPONIVEL
+        v_limpo = str(valor).strip().casefold()
+        for item in StatusAmostra:
+            if item.value.casefold() == v_limpo or item.name.casefold() == v_limpo:
+                return item
+        return valor
+
+    def aplicar_obrigatoriedade(
+        self,
+        payload: Dict[str, Any],
+        carga_legada: bool = False,
+        campos: Optional[List[str]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Aplica as regras de obrigatoriedade sobre um payload com chaves canônicas:
+        - carga_legada=False (padrão: API / novos cadastros): rejeita com ValueError
+          qualquer campo obrigatório ausente, vazio ou 'Não informado'.
+        - carga_legada=True (importação de planilhas antigas): preenche ausências
+          automaticamente com valores padrão ('Não informado', OUTRO, etc.).
+        """
+        verificar = set(campos) if campos is not None else set(_CAMPOS_OBRIGATORIOS_AMOSTRA)
+        faltantes: List[str] = []
+
+        for campo in sorted(verificar):
+            valor = payload.get(campo)
+
+            # Campos booleanos
+            if campo in _CAMPOS_BOOLEANOS:
+                bool_val = self._converter_booleano(valor)
+                if bool_val is not None:
+                    payload[campo] = bool_val
+                elif carga_legada:
+                    payload[campo] = False
+                else:
+                    faltantes.append(_ROTULOS_CAMPOS.get(campo, campo))
+                continue
+
+            # Campo data_coleta_amostra
+            if campo == "data_coleta_amostra":
+                if self._eh_nao_informado(valor):
+                    if carga_legada:
+                        payload[campo] = date.today()
+                    else:
+                        faltantes.append(_ROTULOS_CAMPOS.get(campo, campo))
+                else:
+                    try:
+                        payload[campo] = normalizar_data(valor, permitir_none=False)
+                    except ValueError:
+                        if carga_legada:
+                            payload[campo] = date.today()
+                        else:
+                            faltantes.append(_ROTULOS_CAMPOS.get(campo, campo))
+                continue
+
+            # Demais campos (strings e enums)
+            if self._eh_nao_informado(valor):
+                if carga_legada:
+                    padrao = _PADRAO_LEGADO_AMOSTRA.get(campo, "Não informado")
+                    payload[campo] = padrao() if callable(padrao) else padrao
+                else:
+                    faltantes.append(_ROTULOS_CAMPOS.get(campo, campo))
+
+        if faltantes:
+            raise ValueError(
+                "Campos obrigatórios da amostra ausentes ou 'Não informado': " + ", ".join(faltantes) + "."
+            )
+
+        # Normalização de data_entrega
+        if "data_entrega" in payload:
+            v_ent = payload.get("data_entrega")
+            if self._eh_nao_informado(v_ent):
+                payload["data_entrega"] = None
+            else:
+                try:
+                    payload["data_entrega"] = normalizar_data(v_ent, permitir_none=True)
+                except ValueError:
+                    if carga_legada:
+                        payload["data_entrega"] = None
+                    else:
+                        raise ValueError(f"Data de entrega (data_recebimento) inválida: '{v_ent}'.")
+
+        # Normalização geoespacial (latitude e longitude)
+        if "latitude" in payload:
+            v_lat = payload.get("latitude")
+            if self._eh_nao_informado(v_lat):
+                payload["latitude"] = None
+            else:
+                try:
+                    payload["latitude"] = normalizar_coordenada(v_lat, eh_latitude=True)
+                except ValueError as e:
+                    if carga_legada:
+                        payload["latitude"] = None
+                    else:
+                        raise ValueError(str(e))
+
+        if "longitude" in payload:
+            v_lon = payload.get("longitude")
+            if self._eh_nao_informado(v_lon):
+                payload["longitude"] = None
+            else:
+                try:
+                    payload["longitude"] = normalizar_coordenada(v_lon, eh_latitude=False)
+                except ValueError as e:
+                    if carga_legada:
+                        payload["longitude"] = None
+                    else:
+                        raise ValueError(str(e))
+
+        # Normalização de enums
+        if "material_biologico" in payload and payload["material_biologico"] is not None:
+            payload["material_biologico"] = self.normalizar_material_biologico(payload["material_biologico"])
+        if "condicao_armazenamento" in payload and payload["condicao_armazenamento"] is not None:
+            payload["condicao_armazenamento"] = self.normalizar_condicao_armazenamento(payload["condicao_armazenamento"])
+        if "fase_amostra" in payload and payload["fase_amostra"] is not None:
+            payload["fase_amostra"] = self.normalizar_fase_amostra(payload["fase_amostra"])
+        if "destino_amostra" in payload and payload["destino_amostra"] is not None:
+            payload["destino_amostra"] = self.normalizar_destino_amostra(payload["destino_amostra"])
+        if "status_amostra" in payload and payload["status_amostra"] is not None:
+            payload["status_amostra"] = self.normalizar_status_amostra(payload["status_amostra"])
+
+        return payload
 
     # -------------------------------------------------------------------------
     # OPERAÇÕES DE CONSULTA DETALHADA E SANITIZAÇÃO:
@@ -280,9 +491,16 @@ class AmostraService:
         confirmar_nova_amostra: bool = False,
         confirmar_novo_animal: bool = False,
         usuario: Optional[Any] = None,
+        carga_legada: bool = False,
     ) -> Amostra:
         """
-        [CREATE] Cria e persiste uma nova amostra.
+        [CREATE] Cria e persiste uma nova amostra biológica.
+
+        - carga_legada=False (padrão): novos cadastros. Exige identificação, animal_id,
+          data de coleta, material biológico, kit, status, laudo, local de coleta, coletor,
+          condição de armazenamento, fase, destino, caixa e disponibilidade de frações.
+        - carga_legada=True: importação de planilhas antigas. Campos obrigatórios
+          ausentes são preenchidos com 'Não informado' / defaults.
         """
         self._verificar_permissao("criar_amostra", usuario)
 
@@ -293,24 +511,25 @@ class AmostraService:
             payload = dict(dados_amostra)
             conf_animal = payload.pop("confirmar_novo_animal", False) or confirmar_novo_animal
 
-        amostra_id = payload.get("amostra_id") or payload.get("_id")
-        if not amostra_id:
+        payload = self._normalizar_chaves(payload)
+
+        amostra_id = payload.get("amostra_id")
+        if self._eh_nao_informado(amostra_id):
             raise ValueError("O identificador único da amostra (amostra_id ou _id) é obrigatório.")
 
-        animal_id = payload.get("animal_id") or payload.get("animal")
-        if not animal_id:
-            raise ValueError("O identificador do animal vinculado (animal_id ou animal) é obrigatório.")
-
         amostra_id_str = str(amostra_id).strip()
-        animal_id_str = str(animal_id).strip()
-
         payload["amostra_id"] = amostra_id_str
-        payload["_id"] = amostra_id_str
-        payload["animal_id"] = animal_id_str
 
         # Validação de unicidade da amostra
         if self.amostra_repo.exists(amostra_id_str):
             raise ValueError(f"Já existe uma amostra cadastrada com o ID '{amostra_id_str}'.")
+
+        animal_id = payload.get("animal_id")
+        if self._eh_nao_informado(animal_id):
+            raise ValueError("O identificador do animal vinculado (animal_id ou animal) é obrigatório.")
+
+        animal_id_str = str(animal_id).strip()
+        payload["animal_id"] = animal_id_str
 
         # Validação referencial do animal vinculado
         if self.animal_service and hasattr(self.animal_service, "obter_animal"):
@@ -324,9 +543,20 @@ class AmostraService:
                         "confirme através da opção 'confirmar_novo_animal'."
                     )
 
-        # Normalização do material
+        # Validação de campos obrigatórios
+        self.aplicar_obrigatoriedade(payload, carga_legada=carga_legada)
+
+        # Normalização de enums
         if "material_biologico" in payload:
             payload["material_biologico"] = self.normalizar_material_biologico(payload["material_biologico"])
+        if "condicao_armazenamento" in payload:
+            payload["condicao_armazenamento"] = self.normalizar_condicao_armazenamento(payload["condicao_armazenamento"])
+        if "fase_amostra" in payload:
+            payload["fase_amostra"] = self.normalizar_fase_amostra(payload["fase_amostra"])
+        if "destino_amostra" in payload:
+            payload["destino_amostra"] = self.normalizar_destino_amostra(payload["destino_amostra"])
+        if "status_amostra" in payload:
+            payload["status_amostra"] = self.normalizar_status_amostra(payload["status_amostra"])
 
         amostra = Amostra(**payload)
         return self.amostra_repo.create(amostra)
@@ -446,13 +676,15 @@ class AmostraService:
         confirmar_atualizacao_amostra: bool = False,
         confirmar_novo_animal: bool = False,
         usuario: Optional[Any] = None,
+        carga_legada: bool = False,
     ) -> Amostra:
         """
-        [UPDATE] Atualiza dados de uma amostra existente no repositório.
+        [UPDATE] Atualização parcial de uma amostra existente.
+        Apenas os campos enviados são alterados; campos obrigatórios enviados
+        não podem ser vazios ou 'Não informado' (exceto com carga_legada=True).
         """
         self._verificar_permissao("atualizar_amostra", usuario)
         amostra_atual = self.obter_amostra(amostra_id, usuario=usuario)
-        payload = amostra_atual.model_dump(by_alias=True)
 
         if isinstance(dados_atualizacao, AmostraUpdate):
             novos = dados_atualizacao.model_dump(by_alias=True, exclude_unset=True)
@@ -461,8 +693,14 @@ class AmostraService:
             novos = {k: v for k, v in dados_atualizacao.items() if v is not None}
             conf_animal = novos.pop("confirmar_novo_animal", False) or confirmar_novo_animal
 
+        novos = self._normalizar_chaves(novos)
+        for chave in ("amostra_id", "id", "confirmar_atualizacao_amostra", "confirmar_novo_animal"):
+            novos.pop(chave, None)
+
+        payload = self._normalizar_chaves(amostra_atual.model_dump(by_alias=True))
+
         # Validação de alteração de animal_id
-        novo_animal_id = novos.get("animal_id") or novos.get("animal")
+        novo_animal_id = novos.get("animal_id")
         if novo_animal_id and str(novo_animal_id).strip() != amostra_atual.animal_id:
             novo_animal_str = str(novo_animal_id).strip()
             if self.animal_service and hasattr(self.animal_service, "obter_animal"):
@@ -476,12 +714,25 @@ class AmostraService:
                         )
             novos["animal_id"] = novo_animal_str
 
+        # Valida apenas os campos obrigatórios enviados
+        enviados = [c for c in novos if c in _CAMPOS_OBRIGATORIOS_AMOSTRA]
+        if enviados:
+            self.aplicar_obrigatoriedade(novos, carga_legada=carga_legada, campos=enviados)
+
+        # Normalizações dos enums enviados
         if "material_biologico" in novos:
             novos["material_biologico"] = self.normalizar_material_biologico(novos["material_biologico"])
+        if "condicao_armazenamento" in novos:
+            novos["condicao_armazenamento"] = self.normalizar_condicao_armazenamento(novos["condicao_armazenamento"])
+        if "fase_amostra" in novos:
+            novos["fase_amostra"] = self.normalizar_fase_amostra(novos["fase_amostra"])
+        if "destino_amostra" in novos:
+            novos["destino_amostra"] = self.normalizar_destino_amostra(novos["destino_amostra"])
+        if "status_amostra" in novos:
+            novos["status_amostra"] = self.normalizar_status_amostra(novos["status_amostra"])
 
         payload.update(novos)
         payload["amostra_id"] = amostra_id
-        payload["_id"] = amostra_id
 
         amostra_modificada = Amostra(**payload)
         return self.amostra_repo.update(amostra_id, amostra_modificada)

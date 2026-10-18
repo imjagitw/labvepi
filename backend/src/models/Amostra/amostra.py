@@ -1,14 +1,14 @@
 from datetime import date
 from pydantic import BaseModel, ConfigDict, Field
-from typing import Optional, Union
+from typing import Optional
 from src.models.Amostra import CondicaoArmazenamento, DestinoAmostra, FaseAmostra, MaterialBiologico, StatusAmostra
 
 class Amostra(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
     # Identificação e vínculos primários
-    id: Optional[int] = None  # Autoincrementado no banco
-    amostra_id: str = Field(..., alias="_id", description="ID único do laboratório (ex: L 1, AMS001)")    
+    id: Optional[int] = Field(default=None, alias="_id", description="Chave primária autoincrementada no banco")
+    amostra_id: str = Field(..., description="ID único do laboratório (ex: L 1, AMS001)")    
     animal_id: str = Field(..., description="ID ou chave do animal vinculado (ex: AN001, A547)")
     
     # Datas de rastreamento
@@ -16,11 +16,11 @@ class Amostra(BaseModel):
     data_entrega: Optional[date] = Field(default_factory=date.today, alias="data_recebimento", description="Data em que a amostra deu entrada no LABVEPI")
     
     # Tipo / Material biológico coletado
-    material_biologico: Union[MaterialBiologico, str] = Field(default=MaterialBiologico.OUTRO, alias="metodo_coleta", description="Material biológico coletado")
+    material_biologico: MaterialBiologico = Field(default=MaterialBiologico.OUTRO, alias="metodo_coleta", description="Material biológico coletado")
     
     # Status e Laudo
     status_amostra: StatusAmostra = StatusAmostra.DISPONIVEL  # nasce disponível
-    laudo_liberado: bool = False
+    laudo_liberado: bool = False 
 
     # Campos de triagem / laboratório (opcionais com defaults, ausentes na planilha histórica geral)
     local_coleta_amostra: Optional[str] = Field(default=None, alias="local_coleta", description="Local específico da coleta")
@@ -38,26 +38,30 @@ class Amostra(BaseModel):
 
     # Campos de projetos e geolocalização (opcionais)
     amostra_id_projeto: Optional[str] = None # id do projeto a que a amostra pertence
-    longitude: Optional[float] = None
-    latitude: Optional[float] = None
+    longitude: Optional[float] = Field(default=None, description="Coordenada decimal de longitude padrão WGS84")
+    latitude: Optional[float] = Field(default=None, description="Coordenada decimal de latitude padrão WGS84")
     amostra_observacoes: Optional[str] = Field(default=None, alias="observacoes")
 
     # =========================================================================
     # AÇÕES / VALIDAÇÕES / SERVICES RETIRADOS DESTE MODEL:
     # -------------------------------------------------------------------------
     # O QUE FAZER:
-    #   1. Normalização heurística de 'material_biologico':
-    #      - Converter strings recebidas de planilhas/formulários para o Enum
-    #        'MaterialBiologico' correspondente (busca case-insensitive).
-    #      - Mapear termos frequentes de planilhas (ex: 'soro' -> MaterialBiologico.SORO,
-    #        'papel filtro' -> MaterialBiologico.PAPEL_FILTRO, 'cloacal'/'oral' ->
-    #        MaterialBiologico.SWAB_ORAL_CLOACAL, 'sangue' -> MaterialBiologico.SANGUE,
-    #        'órgão'/'orgao' -> MaterialBiologico.ORGAOS, 'tecido' -> MaterialBiologico.TECIDO,
-    #        'fezes' -> MaterialBiologico.FEZES, etc.).
+    #   1. Normalização de Datas de Coleta e Entrega:
+    #      - Converter qualquer string válida (ISO 'AAAA-MM-DD', brasileira 'DD/MM/AAAA')
+    #        ou objetos datetime para datetime.date.
+    #      - Tratar sentinelas textuais ('NI', '-', 'Não informado') como None.
+    #   2. Normalização Geoespacial de Coordenadas:
+    #      - Converter coordenadas em float decimal, strings com vírgula ('-5,089'),
+    #        ou graus sexagesimais DMS (ex: 05°05'21"S) para float decimal WGS84.
+    #      - Tratar sentinelas ('-', 'NI') como None.
+    #   3. Normalização Heurística de Enums (Carga Legada):
+    #      - Normalizar termos textuais livres para os Enums estritos
+    #        (MaterialBiologico, StatusAmostra, CondicaoArmazenamento, FaseAmostra, DestinoAmostra)
+    #        apenas quando carga_legada=True. Em novos cadastros, exigir o Enum estrito.
     #
     # ONDE FAZER:
-    #   - Camada de Serviços: 'backend/src/services/amostra_service.py' (ou
-    #     rotina de ingestão/ETL de planilhas) antes de instanciar a entidade Amostra.
-    #   - Camada de Controladores: 'backend/src/controllers/amostra_controller.py'
-    #     ao receber e sanitizar os payloads dos endpoints HTTP.
+    #   - Camada de Serviços: 'backend/src/services/amostra_service.py' (criar_amostra,
+    #     atualizar_amostra e aplicar_obrigatoriedade).
+    #   - Camada de Domínio: 'backend/src/domain/normalizacao.py' (funções
+    #     normalizar_data, normalizar_coordenada, normalizar_material_biologico).
     # =========================================================================

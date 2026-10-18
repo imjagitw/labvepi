@@ -15,8 +15,8 @@ class AmostraDetails(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
     # Identificação e vínculos
-    id: Optional[int] = Field(default=None, description="Identificador sequencial do banco")
-    amostra_id: str = Field(..., alias="_id", description="ID único do laboratório (ex: L 1, AMS001)")
+    id: Optional[int] = Field(default=None, alias="_id", description="Identificador sequencial do banco")
+    amostra_id: str = Field(..., description="ID único do laboratório (ex: L 1, AMS001)")
     animal_id: str = Field(..., description="ID ou chave do animal vinculado (ex: AN001, A547)")
     animal: Optional[Animal] = Field(
         default=None, 
@@ -127,3 +127,20 @@ class AmostraDetails(BaseModel):
         default_factory=list,
         description="Lista completa dos exames laboratoriais realizados a partir desta amostra"
     )
+
+    # =========================================================================
+    # AÇÕES / VALIDAÇÕES / SERVICES RETIRADOS DESTE MODEL:
+    # -------------------------------------------------------------------------
+    # O QUE FAZER:
+    #   1. Saneamento e Formatação para Exibição:
+    #      - Preencher campos vazios/nulos com 'Não informado' na visão detalhada.
+    #      - Converter coordenadas geográficas e datas em strings formatadas legíveis.
+    #   2. Agregação de Relacionamentos:
+    #      - Carregar entidade Animal vinculada via animal_service.obter_animal.
+    #      - Carregar exames associados e calcular quantidade_exames via exame_repo.
+    #
+    # ONDE FAZER:
+    #   - Camada de Serviços: 'backend/src/services/amostra_service.py'
+    #     (preencher_nao_informados_e_relacionamentos / obter_amostra_detalhes).
+    #   - Camada de Controladores: 'backend/src/controllers/amostra_controller.py'.
+    # =========================================================================

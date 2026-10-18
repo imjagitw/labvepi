@@ -1,95 +1,99 @@
 from datetime import date
-from typing import Optional, Union
+from typing import Optional
 from pydantic import BaseModel, ConfigDict, Field
 from src.models.Amostra import MaterialBiologico, FaseAmostra, StatusAmostra, DestinoAmostra, CondicaoArmazenamento
 
 class AmostraCreate(BaseModel):
     """
-    Schema de criação de uma nova amostra biológica (DTO de entrada):
+    Schema de criação de uma nova amostra biológica (DTO de entrada estrito):
     - Identificação e vínculo obrigatório com o animal de origem.
-    - Datas de rastreamento com default dinâmico para a data atual.
-    - Tipo e método de coleta (matriz biológica).
-    - Status de triagem laboratorial, frações disponíveis e armazenamento.
+    - Campos laboratoriais e de rastreamento obrigatórios sem defaults permissivos.
+    - Rejeição de valores 'Não informado' e sentinelas é validada em AmostraService.criar_amostra.
+    - Cargas legadas (planilhas) usam AmostraService.criar_amostra(..., carga_legada=True).
     """
     model_config = ConfigDict(populate_by_name=True)
 
     # Identificação e vínculos primários
-    id: Optional[int] = None # gerado automaticamente autoincrementado
-    amostra_id: str = Field(..., alias="_id", description="ID único do laboratório (ex: L 1, AMS001)")
+    id: Optional[int] = Field(default=None, alias="_id", description="Chave primária autoincrementada no banco")
+    amostra_id: str = Field(..., description="ID único do laboratório (ex: L 1, AMS001)")
     animal_id: str = Field(..., alias="animal", description="ID ou chave do animal vinculado (ex: AN001, A547)")
 
     # Datas de rastreamento
-    data_coleta_amostra: Optional[date] = Field(
-        default_factory=date.today,
+    data_coleta_amostra: date = Field(
+        ...,
         alias="data_coleta",
         description="Data em que a coleta foi realizada"
     )
     data_entrega: Optional[date] = Field(
-        default_factory=date.today,
+        default=None,
         alias="data_recebimento",
         description="Data em que a amostra deu entrada no LABVEPI"
     )
 
-    # Tipo / Material biológico coletado
-    material_biologico: Union[MaterialBiologico, str] = Field(
-        default=MaterialBiologico.OUTRO,
+    # Tipo / Material biológico coletado (Enum estrito em novos cadastros)
+    material_biologico: MaterialBiologico = Field(
+        ...,
         alias="metodo_coleta",
         description="Material biológico coletado"
     )
 
     # Status e Laudo
     status_amostra: StatusAmostra = Field(
-        default=StatusAmostra.DISPONIVEL,
+        ...,
         description="Status inicial da amostra no acervo"
     )
     laudo_liberado: bool = Field(
-        default=False,
+        ...,
         description="Indica se o laudo foi liberado"
     )
 
     # Campos de triagem / laboratório
-    local_coleta_amostra: Optional[str] = Field(
-        default=None,
+    local_coleta_amostra: str = Field(
+        ...,
         alias="local_coleta",
+        min_length=1,
         description="Local específico da coleta"
     )
-    nome_coletor: Optional[str] = Field(
-        default=None,
+    nome_coletor: str = Field(
+        ...,
+        min_length=1,
         description="Nome do responsável pela coleta"
     )
-    condicao_armazenamento: Optional[CondicaoArmazenamento] = Field(
-        default=None,
+    condicao_armazenamento: CondicaoArmazenamento = Field(
+        ...,
         description="Condição física de armazenamento da amostra"
     )
-    fase_amostra: Optional[FaseAmostra] = Field(
-        default=FaseAmostra.EXTRACAO,
+    fase_amostra: FaseAmostra = Field(
+        ...,
         description="Fase inicial da amostra no laboratório"
     )
-    destino_amostra: Optional[DestinoAmostra] = Field(
-        default=DestinoAmostra.LAB_VIGILANCIA_EPIZOOTIAS_UFPI,
+    destino_amostra: DestinoAmostra = Field(
+        ...,
         description="Destino ou instituição responsável pela custódia"
     )
-    kit_utilizado: Optional[str] = Field(
-        default=None,
+    kit_utilizado: str = Field(
+        ...,
+        min_length=1,
         description="Kit de extração utilizado"
     )
-    caixa_armazenamento: Optional[str] = Field(
-        default=None,
+    caixa_armazenamento: str = Field(
+        ...,
         alias="caixa",
+        min_length=1,
         description="Caixa de armazenamento / freezer"
     )
 
     # Disponibilidade de frações
     dna_disponivel: bool = Field(
-        default=False,
+        ...,
         description="Indica se há fração de DNA disponível"
     )
     rna_disponivel: bool = Field(
-        default=False,
+        ...,
         description="Indica se há fração de RNA disponível"
     )
     sequenciamento_disponivel: bool = Field(
-        default=False,
+        ...,
         alias="sequenciamento",
         description="Indica se há material disponível para sequenciamento"
     )
@@ -101,11 +105,11 @@ class AmostraCreate(BaseModel):
     )
     longitude: Optional[float] = Field(
         default=None,
-        description="Coordenada de longitude do ponto de coleta"
+        description="Coordenada de longitude do ponto de coleta (decimal WGS84)"
     )
     latitude: Optional[float] = Field(
         default=None,
-        description="Coordenada de latitude do ponto de coleta"
+        description="Coordenada de latitude do ponto de coleta (decimal WGS84)"
     )
     amostra_observacoes: Optional[str] = Field(
         default=None,
@@ -122,3 +126,21 @@ class AmostraCreate(BaseModel):
         default=False,
         description="Confirmação de vínculo a animal recém-cadastrado"
     )
+
+    # =========================================================================
+    # AÇÕES / VALIDAÇÕES / SERVICES RETIRADOS DESTE MODEL:
+    # -------------------------------------------------------------------------
+    # O QUE FAZER:
+    #   1. Parsing e Conversão de Datas e Coordenadas no Service:
+    #      - Converter strings recebidas de datas ('AAAA-MM-DD', 'DD/MM/AAAA') para datetime.date.
+    #      - Converter coordenadas com vírgula ('-5,089') ou DMS (05°05'21"S) para float decimal.
+    #      - Tratar sentinelas textuais ('NI', '-', 'Não informado') como None.
+    #   2. Carga Legada Tolerante (carga_legada=True):
+    #      - Em carga_legada=True, normalizar strings livres para os Enums estritos
+    #        via funções de normalização do domínio e preencher campos obrigatórios ausentes.
+    #      - Em carga_legada=False, exigir estritamente valores válidos dos Enums.
+    #
+    # ONDE FAZER:
+    #   - Camada de Serviços: 'backend/src/services/amostra_service.py' (criar_amostra).
+    #   - Camada de Controladores: 'backend/src/controllers/amostra_controller.py'.
+    # =========================================================================

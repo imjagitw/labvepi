@@ -2,20 +2,7 @@ from datetime import date
 from enum import Enum
 from typing import Optional
 from pydantic import BaseModel, ConfigDict, Field
-
-class UnidadeMedida(str, Enum):
-    ML = 'ml'
-    L = 'L'
-    UL = 'µl'
-    G = 'g'
-    MG = 'mg'
-    KG = 'kg'
-    UNIDADE = 'un'
-
-class EtapaReagente(str, Enum):
-    EXTRAÇÃO = 'Extração'
-    PCR = 'PCR'
-    ELETRO = 'ELETRO'
+from src.models.Reagente import EtapaReagente, UnidadeMedida
 
 class Reagente(BaseModel):
     """
@@ -26,7 +13,7 @@ class Reagente(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
     
     # Obrigatórios
-    id: Optional[int] = None # Gerado automaticamente autoincrementado
+    id: Optional[int] = Field(default=None, alias="_id", description="Chave primária autoincrementada no banco")
     reagente_codigo: str = Field(..., alias="codigo", description="Código do reagente")
     reagente_nome: str = Field(..., alias="nome", description="Nome do reagente")
     numero_lote: str = Field(..., description="Número identificador do lote")
@@ -36,7 +23,7 @@ class Reagente(BaseModel):
     reagente_local_armazenamento: str = Field(..., alias="local_armazenamento", description="Local físico de armazenamento")
     
     # Opcionais
-    reagente_id: Optional[str] = Field(default=None, alias="_id", description="Identificador único padrão do laboratório")
+    reagente_id: Optional[str] = Field(default=None, description="Identificador único padrão do laboratório")
     quantidade_volume: Optional[float] = Field(default=None, description="Volume ou massa contida em cada unidade")
     unidade_medida: UnidadeMedida = Field(default="ml", alias="unidade", description="Unidade de medida (ex: ml, L, g)")
     reagente_etapa: Optional[EtapaReagente] = Field(default=None, alias="etapa", description="Etapa laboratorial em que é empregado")
@@ -50,21 +37,18 @@ class Reagente(BaseModel):
     # AÇÕES / VALIDAÇÕES / SERVICES RETIRADOS DESTE MODEL:
     # -------------------------------------------------------------------------
     # O QUE FAZER:
-    #   1. Parsing de 'data_validade':
-    #      - Converter strings em formatos locais (ex: DD/MM/AAAA) para o tipo 'datetime.date'.
-    #   2. Normalização de 'unidade_medida':
-    #      - Tratar e converter sinônimos textuais ('litros' -> 'L', 'gramas' -> 'g',
-    #        'cx' -> 'cx', 'frascos' -> 'frasco', 'tubos' -> 'tubo', etc.) para unidades canônicas.
-    #   3. Resolução de Sinônimos de Payloads Legados:
-    #      - Adaptar payloads de importação/APIs antigas onde 'quantidade' mapeava para
-    #        'quantidade_unidade' e 'fabricante' mapeava para 'marca'.
-    #   4. Ações e Cálculos Temporais de Validade:
-    #      - Calcular se o lote está vencido: 'data_validade < date.today()'.
-    #      - Calcular dias restantes: '(data_validade - date.today()).days'.
+    #   1. Cálculos Temporais e Status de Validade:
+    #      - Calcular 'esta_vencido': True se data_validade < date.today() senão False.
+    #      - Calcular 'dias_para_vencer': (data_validade - date.today()).days.
+    #   2. Validação e Consistência de Lotes:
+    #      - Validar que quantidade_unidade >= 1 e quantidade_volume > 0.
+    #      - Garantir unicidade de lote e código de reagente no acervo.
+    #   3. Normalização de Unidades e Etapas:
+    #      - Normalizar variações textuais para UnidadeMedida ('ml', 'L', 'g', 'mg')
+    #        e EtapaReagente ('extração', 'PCR', 'eletroforese', etc.).
     #
     # ONDE FAZER:
-    #   - Camada de Serviços: 'backend/src/services/reagente_service.py' (em métodos
-    #     como 'processar_lote_reagente', 'verificar_validade_lotes', etc.).
-    #   - Camada de Controladores: 'backend/src/controllers/reagente_controller.py'
-    #     e scripts de importação ('streamlit/pages/4_Importar.py') antes da instanciação do modelo.
+    #   - Camada de Serviços: 'backend/src/services/reagente_service.py' (criar_reagente,
+    #     atualizar_reagente, calcular_status_validade).
+    #   - Camada de Controladores: 'backend/src/controllers/reagente_controller.py'.
     # =========================================================================

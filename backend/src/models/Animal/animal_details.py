@@ -1,7 +1,7 @@
 from typing import Optional, Union, List
 from pydantic import BaseModel, ConfigDict, Field
 from src.models.Especie import Classe, Especie
-from src.models.Animal import Sexo, FaixaEtaria, Orgao, RegimeVida, StatusVital, Funcao
+from src.models.Animal import Sexo, FaixaEtaria, Orgao, RegimeVida, StatusVital, Funcao, UnidadeIdade, UnidadePeso
 from src.models.Amostra import Amostra
 
 class AnimalDetails(BaseModel):
@@ -14,8 +14,8 @@ class AnimalDetails(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
     # Identificação
-    id: Optional[int] = Field(default=None, description="Identificador sequencial do banco")
-    animal_id: str = Field(..., alias="_id", description="ID único do laboratório (ex: AN001)")
+    id: Optional[int] = Field(default=None, alias="_id", description="Identificador sequencial do banco")
+    animal_id: str = Field(..., description="ID único do laboratório (ex: AN001)")
 
     # Dados taxonômicos e espécie
     nome_comum: str = Field(..., alias="nome", description="Nome comum da espécie")
@@ -30,7 +30,15 @@ class AnimalDetails(BaseModel):
     )
     peso: Union[float, str] = Field(
         default="Não aferido", 
-        description="Peso em kg (se aferido) ou 'Não aferido'"
+        description="Peso canônico em kg (se aferido) ou 'Não aferido'"
+    )
+    peso_valor: Optional[float] = Field(
+        default=None, 
+        description="Valor numérico aferido do peso"
+    )
+    peso_unidade: Optional[Union[UnidadePeso, str]] = Field(
+        default=None, 
+        description="Unidade do peso aferido ('kg', 'g' ou 'mg')"
     )
     faixa_etaria: Union[FaixaEtaria, str] = Field(
         default=FaixaEtaria.NAO_INFORMADO, 
@@ -44,6 +52,18 @@ class AnimalDetails(BaseModel):
     local_origem: Union[str, None] = Field(
         default="Não informado", 
         description="Município ou localidade de procedência"
+    )
+    municipio: Optional[str] = Field(
+        default="Não informado",
+        description="Município de procedência"
+    )
+    uf: Optional[str] = Field(
+        default="Não informado",
+        description="Sigla da Unidade Federativa (2 letras)"
+    )
+    localidade_detalhe: Optional[str] = Field(
+        default="Não informado",
+        description="Bairro, parque, fazenda ou ponto de resgate"
     )
     regime_vida: Union[RegimeVida, str] = Field(
         default=RegimeVida.NAO_INFORMADO, 
@@ -72,6 +92,14 @@ class AnimalDetails(BaseModel):
         default="Não informado", 
         description="Idade informada ou estimada"
     )
+    idade_valor: Optional[float] = Field(
+        default=None, 
+        description="Valor numérico da idade"
+    )
+    idade_unidade: Optional[Union[UnidadeIdade, str]] = Field(
+        default=None, 
+        description="Unidade temporal da idade ('anos', 'meses', 'semanas', 'dias')"
+    )
     suspeita_clinica: Optional[str] = Field(
         default="Não informado", 
         description="Suspeita clínica observada"
@@ -91,3 +119,19 @@ class AnimalDetails(BaseModel):
         default_factory=list, 
         description="Lista completa das amostras biológicas pertencentes a este animal"
     )
+
+    # =========================================================================
+    # AÇÕES / VALIDAÇÕES / SERVICES RETIRADOS DESTE MODEL:
+    # -------------------------------------------------------------------------
+    # O QUE FAZER:
+    #   1. Saneamento e Formatação de Localidade:
+    #      - Preencher 'municipio', 'uf' e 'localidade_detalhe' a partir de
+    #        'local_origem' via decompor_localidade se não estiverem preenchidos.
+    #      - Exibir 'Não informado' para partes ausentes na visão detalhada.
+    #   2. Biometria e Relações:
+    #      - Resolver objeto detalhado Especie e lista de Amostra associadas.
+    #
+    # ONDE FAZER:
+    #   - Camada de Serviços: 'backend/src/services/animal_service.py'
+    #     (preencher_nao_informados_e_relacionamentos / obter_animal_detalhes).
+    # =========================================================================

@@ -1,8 +1,8 @@
 from datetime import date
 from typing import List, Dict, Optional
 from collections import defaultdict
-from src.models.reagente import Reagente
-from src.models.estoqueReagente import EstoqueReagente
+from src.models.Reagente import Reagente
+from src.models.EstoqueReagente import EstoqueReagente
 
 # Fatores para conversão dimensional para unidades base:
 # Volume -> base 'ml'

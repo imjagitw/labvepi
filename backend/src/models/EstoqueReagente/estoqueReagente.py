@@ -1,6 +1,6 @@
 from typing import Optional, List, Dict
 from pydantic import BaseModel, ConfigDict, Field
-from src.models.reagente import Reagente
+from src.models.Reagente import Reagente
 
 class EstoqueReagente(BaseModel):
     """
@@ -10,7 +10,7 @@ class EstoqueReagente(BaseModel):
     """
     model_config = ConfigDict(populate_by_name=True)
 
-    id: Optional[int] = None
+    id: Optional[int] = Field(default=None, alias="_id", description="Chave primária autoincrementada no banco")
     reagente_nome: str = Field(..., alias="nome", description="Nome do reagente")
     reagente_codigo: Optional[str] = Field(default=None, alias="codigo", description="Código de referência do reagente")
     lotes: List[Reagente] = Field(default_factory=list, description="Lista de lotes associados ao reagente")
@@ -26,22 +26,15 @@ class EstoqueReagente(BaseModel):
     # AÇÕES / VALIDAÇÕES / SERVICES RETIRADOS DESTE MODEL:
     # -------------------------------------------------------------------------
     # O QUE FAZER:
-    #   1. Tabela e Lógica de Conversão Dimensional:
-    #      - Manter dicionário de fatores de conversão (FATORES_CONVERSAO) para
-    #        unidades base: volume (ml, L, µl) e massa (g, mg, kg).
-    #      - Prevenir soma cega de grandezas incompatíveis (ex: somar ml com g).
-    #   2. Validação de Lotes Únicos:
-    #      - Validar se não há números de lote duplicados para o mesmo reagente.
-    #   3. Consolidação de Estoque (Ações e Cálculos):
-    #      - Calcular soma total de frascos/unidades físicas ('quantidade_total_unidades').
-    #      - Consolidar quantidades por unidade declarada ('totais_por_unidade').
-    #      - Calcular quantidades convertidas para unidades base ('totais_convertidos_base').
-    #      - Calcular volume/massa unificado principal ('quantidade_total_volume').
-    #      - Gerar descrição legível consolidada ('resumo_estoque', ex: '1500 ml').
+    #   1. Agregação e Consolidação de Estoque:
+    #      - Agrupar lotes físicos por reagente e somar 'quantidade_total_unidades'.
+    #      - Converter dimensionalmente volumes e massas para a unidade canônica
+    #        (litros -> ml, kg -> g) e totalizar em 'quantidade_total_volume'.
+    #      - Manter totais discriminados por unidade original em 'totais_por_unidade'.
+    #      - Gerar 'resumo_estoque' textual para exibição na interface.
     #
     # ONDE FAZER:
-    #   - Camada de Serviços: 'backend/src/services/reagente_service.py' (especificamente
-    #     no método 'agrupar_por_nome' ou métodos de cálculo consolidado de inventário).
-    #   - Camada de Controladores: 'backend/src/controllers/reagente_controller.py'
-    #     ao preparar respostas agregadas de inventário para a interface web.
+    #   - Camada de Serviços: 'backend/src/services/estoque_service.py' (consolidar_estoque,
+    #     atualizar_metricas_estoque).
+    #   - Camada de Controladores: 'backend/src/controllers/estoque_controller.py'.
     # =========================================================================

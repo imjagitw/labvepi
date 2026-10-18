@@ -10,4 +10,4 @@ class FaixaEtaria(str, Enum):
     IDOSO = 'Idoso'
     POTRO = 'Potro'
     NINHEGO = 'Ninhego'
-    NAO_INFORMADO = 'Não informado'
+    NAO_INFORMADO = 'Não Informado'

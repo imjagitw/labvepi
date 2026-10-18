@@ -32,12 +32,16 @@ def criar_amostra(
     confirmar_novo_animal: bool = Query(
         False, description="Confirma vínculo a animal ainda não cadastrado no catálogo"
     ),
+    carga_legada: bool = Query(
+        False, description="Ativa modo tolerante para importação de planilhas legadas"
+    ),
 ):
     try:
         return amostra_service.criar_amostra(
             dados_amostra=amostra_input,
             confirmar_nova_amostra=confirmar_nova_amostra,
             confirmar_novo_animal=confirmar_novo_animal,
+            carga_legada=carga_legada,
         )
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))

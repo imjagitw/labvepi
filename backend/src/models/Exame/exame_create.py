@@ -5,9 +5,9 @@ from src.models.Exame import TipoExame, ResultadoExame, TesteLaboratorial
 
 class ExameCreate(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
-    id: Optional[int] = None # gerado automaticamente autoincrementado
+    id: Optional[int] = Field(default=None, alias="_id", description="Chave primária autoincrementada no banco")
     amostra_id: str # chave estrangeira para a tabela/documento de amostra
-    exame_id: Optional[str] = Field(default=None, alias="_id")
+    exame_id: Optional[str] = None
     tipo_exame: TipoExame # patógeno ou painel investigado
     resultado: ResultadoExame = Field(..., alias="resultado_detalhado") # resultado categorizado do ensaio
     data_realizacao: date # cadastrar apenas exames realizados, então alarmar se não informado data

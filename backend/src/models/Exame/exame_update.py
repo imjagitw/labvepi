@@ -5,7 +5,7 @@ from src.models.Exame import TipoExame, ResultadoExame, TesteLaboratorial
 class ExameUpdate(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
     amostra_id: str
-    exame_id: Optional[str] = Field(default=None, alias="_id")
+    exame_id: Optional[str] = None
     tipo_exame: TipoExame
     resultado: ResultadoExame = Field(..., alias="resultado_detalhado")
     teste_laboratorial: TesteLaboratorial

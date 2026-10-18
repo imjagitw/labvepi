@@ -15,4 +15,7 @@ class TipoExame(str, Enum):
     CHLAMYDIA = 'Chlamydia'
     SARCOCYSTIDAE = 'Sarcocystidae'
     PLASMODIUM_HAEMOPROTEUS = 'Plasmodium e Haemoproteus'
+    AIMES = 'AIMES'
+    COVID_ORAL = 'Covid Oral'
+    COVID_RETAL = 'Covid Retal'
     OUTRO = 'Outro'
