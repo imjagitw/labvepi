@@ -452,10 +452,6 @@ class AnimalService:
             nome_cientifico=nome_cientifico,
         )
 
-    def contar_animais(self, usuario: Optional[Any] = None) -> int:
-        self._verificar_permissao("contar_animais", usuario)
-        return self.animal_repo.count()
-
     def atualizar_animal(
         self,
         animal_id: str,

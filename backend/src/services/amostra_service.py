@@ -451,11 +451,6 @@ class AmostraService:
             limit=limit,
         )
 
-    def listar_amostras_por_animal(self, animal_id: str, usuario: Optional[Any] = None) -> List[Amostra]:
-        """[READ] Retorna todas as amostras biológicas vinculadas a um animal específico."""
-        self._verificar_permissao("listar_amostras", usuario)
-        return self.amostra_repo.buscar_por_animal_id(animal_id)
-
     def contar_amostras(self, usuario: Optional[Any] = None) -> int:
         """[READ] Retorna a quantidade total de amostras cadastradas."""
         self._verificar_permissao("contar_amostras", usuario)

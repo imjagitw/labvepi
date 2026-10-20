@@ -2,21 +2,22 @@ import re
 from datetime import date, datetime
 from typing import Any, Optional, Union
 from enum import Enum
-
-from src.models.Animal.enums.Sexo import Sexo
-from src.models.Animal.enums.StatusVital import StatusVital
-from src.models.Animal.enums.FaixaEtaria import FaixaEtaria
-from src.models.Animal.enums.UnidadePeso import UnidadePeso
-from src.models.Animal.enums.UnidadeIdade import UnidadeIdade
+from src.models.Animal import (
+    Sexo, StatusVital, FaixaEtaria, UnidadePeso, UnidadeIdade,
+    Orgao, Funcao, RegimeVida
+)
 from src.models.Amostra.enums.MaterialBiologico import MaterialBiologico
+from src.models.Exame import (
+    ResultadoExame, TipoExame, TesteLaboratorial
+)
 
 # Sentinelas e aliases textuais para valores nulos/não informados
 _VALORES_NAO_INFORMADOS = {
     "", "-", "ni", "none", "null", "n/a", "na",
     "não informado", "nao informado", "não identificado", "nao identificado",
 }
-_VALORES_NAO_AFERIDO = {"não aferido", "nao aferido"}
 
+_VALORES_NAO_AFERIDO = {"não aferido", "nao aferido"}
 
 def eh_nao_informado(valor: Any) -> bool:
     """Verifica se um valor é nulo, vazio ou um sentinela textual de 'Não informado'."""
@@ -29,7 +30,6 @@ def eh_nao_informado(valor: Any) -> bool:
     if isinstance(valor, str):
         return valor.strip().casefold() in _VALORES_NAO_INFORMADOS
     return False
-
 
 def normalizar_unidade_peso(v: Any) -> Optional[UnidadePeso]:
     """Normaliza strings ou enums para UnidadePeso (kg, g ou mg)."""
@@ -45,7 +45,6 @@ def normalizar_unidade_peso(v: Any) -> Optional[UnidadePeso]:
     if s in {"mg", "milig", "miligramas", "miligrama"}:
         return UnidadePeso.MG
     return None
-
 
 def normalizar_unidade_idade(v: Any) -> Optional[UnidadeIdade]:
     """Normaliza strings ou enums para UnidadeIdade (anos, meses, semanas, dias)."""
@@ -63,7 +62,6 @@ def normalizar_unidade_idade(v: Any) -> Optional[UnidadeIdade]:
     if s in {"dia", "dias", "d"}:
         return UnidadeIdade.DIAS
     return None
-
 
 def decompor_peso(
     peso_bruto: Any = None,
@@ -155,7 +153,6 @@ def decompor_peso(
 
     return "Não aferido", None, None
 
-
 def normalizar_peso(v: Any) -> Union[float, str]:
     """
     Sanitiza e converte pesos para float em kg ou para o padrão 'Não aferido'.
@@ -164,12 +161,10 @@ def normalizar_peso(v: Any) -> Union[float, str]:
     peso_kg, _, _ = decompor_peso(peso_bruto=v)
     return peso_kg
 
-
 def validar_peso(peso: Union[float, str]) -> None:
     """Garante que qualquer peso numérico seja estritamente maior que zero."""
     if isinstance(peso, (int, float)) and peso <= 0:
         raise ValueError("O peso deve ser maior que zero ou marcado como 'Não aferido'.")
-
 
 def decompor_idade(
     idade_str: Optional[str] = None,
@@ -240,7 +235,6 @@ def decompor_idade(
 
     # Se for termo categórico (ex: 'Filhote', 'Ninhego', 'Potro')
     return idade_clean, None, None
-
 
 def deduzir_faixa_etaria(
     idade_str: Optional[str] = None,
@@ -337,7 +331,6 @@ def deduzir_faixa_etaria(
     else:
         return FaixaEtaria.SENIL
 
-
 def normalizar_sexo(valor: Any) -> Sexo:
     """Normaliza strings ou enums para o Enum Sexo canônico."""
     if isinstance(valor, Sexo):
@@ -360,7 +353,6 @@ def normalizar_sexo(valor: Any) -> Sexo:
 
     return Sexo.NAO_INFORMADO
 
-
 def normalizar_status_vital(valor: Any) -> StatusVital:
     """Normaliza strings ou enums para o Enum StatusVital canônico."""
     if isinstance(valor, StatusVital):
@@ -382,7 +374,6 @@ def normalizar_status_vital(valor: Any) -> StatusVital:
             return sv
 
     return StatusVital.NAO_INFORMADO
-
 
 def normalizar_material_biologico(valor: Union[MaterialBiologico, str]) -> Union[MaterialBiologico, str]:
     """
@@ -461,7 +452,6 @@ def normalizar_material_biologico(valor: Union[MaterialBiologico, str]) -> Union
 
     return valor
 
-
 def normalizar_data(valor: Any, permitir_none: bool = True) -> Optional[date]:
     """
     Normaliza entradas heterogêneas de datas para datetime.date ou None.
@@ -506,7 +496,6 @@ def normalizar_data(valor: Any, permitir_none: bool = True) -> Optional[date]:
             pass
 
     raise ValueError(f"Formato de data inválido: '{valor}'. Use o formato AAAA-MM-DD ou DD/MM/AAAA.")
-
 
 def normalizar_coordenada(valor: Any, eh_latitude: bool = True) -> Optional[float]:
     """
@@ -557,13 +546,11 @@ def normalizar_coordenada(valor: Any, eh_latitude: bool = True) -> Optional[floa
 
     return val_f
 
-
 _SIGLAS_UF = {
     "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA",
     "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN",
     "RS", "RO", "RR", "SC", "SP", "SE", "TO",
 }
-
 
 def decompor_localidade(
     local_origem: Any = None,
@@ -615,7 +602,6 @@ def decompor_localidade(
 
     return mun, sigla_uf, detalhe, local_origem_composto
 
-
 def normalizar_booleano(valor: Any) -> Optional[bool]:
     """
     Normaliza valores heterogêneos para bool estrito (True/False) ou None.
@@ -638,7 +624,6 @@ def normalizar_booleano(valor: Any) -> Optional[bool]:
             return False
     return None
 
-
 def normalizar_enum(enum_cls: Any, valor: Any, default: Any = None) -> Any:
     """
     Normaliza entradas heterogêneas (strings, enum members) para o Enum canônico.
@@ -655,3 +640,120 @@ def normalizar_enum(enum_cls: Any, valor: Any, default: Any = None) -> Any:
             return item
     return valor
 
+def normalizar_resultado_exame(valor: Any, default: Optional[ResultadoExame] = None) -> Optional[ResultadoExame]:
+    """
+    Normalização heurística de resultados de ensaios laboratoriais para o Enum ResultadoExame:
+    - Negativo: 'não reagente', 'negativo', 'indetectável', 'não detectado'
+    - Positivo: 'reagente', 'positivo', 'detectável', 'detectado', '+'
+    - Inconclusivo: 'inconclusivo', 'inespecífico', 'repetir', 'indeterminado', 'duvidoso'
+    - Aguardando Resultado: 'aguardando', 'em andamento', 'pendente'
+    - Não Realizado: 'não realizado', 'não feito', 'não testado', 'nr', ou sentinelas não informados
+    """
+    if valor is None:
+        return default
+    if isinstance(valor, ResultadoExame):
+        return valor
+    if eh_nao_informado(valor):
+        return default or ResultadoExame.NAO_REALIZADO
+
+    if isinstance(valor, Enum):
+        valor = valor.value
+
+    s = str(valor).strip().casefold()
+    if s in {"nr", "não realizado", "nao realizado", "não testado", "nao testado", "não feito", "nao feito"}:
+        return ResultadoExame.NAO_REALIZADO
+
+    if any(k in s for k in ["não reagente", "nao reagente", "negativ", "indetect"]):
+        return ResultadoExame.NEGATIVO
+    if any(k in s for k in ["reagente", "positiv", "detect"]) or s == "+":
+        return ResultadoExame.POSITIVO
+    if any(k in s for k in ["inconclusiv", "inespec", "repetir", "indetermin", "duvidos"]):
+        return ResultadoExame.INCONCLUSIVO
+    if any(k in s for k in ["aguard", "andamento", "pendent"]):
+        return ResultadoExame.AGUARDANDO
+
+    res = normalizar_enum(ResultadoExame, valor, default=default)
+    return res if isinstance(res, ResultadoExame) else default
+
+def normalizar_tipo_exame(valor: Any, default: Optional[TipoExame] = None) -> Optional[TipoExame]:
+    """Normaliza variações textuais de patógenos e painéis para o Enum canônico TipoExame."""
+    if valor is None:
+        return default
+    if isinstance(valor, TipoExame):
+        return valor
+    if eh_nao_informado(valor):
+        return default
+
+    res = normalizar_enum(TipoExame, valor, default=None)
+    if isinstance(res, TipoExame):
+        return res
+
+    if isinstance(valor, Enum):
+        valor = valor.value
+
+    s = str(valor).strip().casefold()
+    if "covid" in s or "sars-cov" in s:
+        if "ret" in s:
+            return TipoExame.COVID_RETAL
+        return TipoExame.COVID_ORAL
+    if "amarela" in s:
+        return TipoExame.FEBRE_AMARELA
+    if "nilo" in s:
+        return TipoExame.FEBRE_DO_NILO
+    if "orthoflav" in s:
+        return TipoExame.ORTHOFLAVIRIDAE
+    if "flavi" in s:
+        return TipoExame.FLAVIVIRUS
+    if "herpes" in s:
+        if "viridae" in s:
+            return TipoExame.HERPESVIRIDAE
+        return TipoExame.HERPESVIRUS
+    if "plasmod" in s or "haemoproteus" in s or "hemoparasita" in s:
+        return TipoExame.PLASMODIUM_HAEMOPROTEUS
+    if "tripano" in s or "trypano" in s:
+        return TipoExame.TRIPANOSTOMATIDAE
+    if "resistencia" in s or "resistência" in s:
+        return TipoExame.RESISTENCIA_BACTERIANA
+    if "mycoplasma" in s or "micoplasma" in s:
+        return TipoExame.MYCOPLASMA
+    if "chlamydia" in s or "clamidia" in s:
+        return TipoExame.CHLAMYDIA
+    if "sarcocyst" in s:
+        return TipoExame.SARCOCYSTIDAE
+    if "hepatozoon" in s:
+        return TipoExame.HEPATOZOON
+    if "raiva" in s or "rabies" in s:
+        return TipoExame.RAIVA
+    if "aimes" in s:
+        return TipoExame.AIMES
+    return default or TipoExame.OUTRO
+
+def normalizar_teste_laboratorial(
+    valor: Any,
+    default: Optional[TesteLaboratorial] = None,
+) -> Optional[TesteLaboratorial]:
+    """Normaliza metodologias e técnicas analíticas para o Enum canônico TesteLaboratorial."""
+    if valor is None:
+        return default
+    if isinstance(valor, TesteLaboratorial):
+        return valor
+    if eh_nao_informado(valor):
+        return default
+
+    res = normalizar_enum(TesteLaboratorial, valor, default=None)
+    if isinstance(res, TesteLaboratorial):
+        return res
+
+    if isinstance(valor, Enum):
+        valor = valor.value
+
+    s = str(valor).strip().casefold()
+    if "pcr" in s or "molecular" in s or "rt-pcr" in s or "qpcr" in s:
+        return TesteLaboratorial.PCR
+    if "sorol" in s or "elisa" in s or "anticorpo" in s:
+        return TesteLaboratorial.SOROLOGICO
+    if "copro" in s or "fezes" in s:
+        return TesteLaboratorial.COPROPARASITOLOGICO
+    if "lamina" in s or "lâmina" in s or "esfregaço" in s or "esfregaco" in s or "gota espessa" in s:
+        return TesteLaboratorial.HEMOPARASITO_EM_LAMINA
+    return default or TesteLaboratorial.OUTRO

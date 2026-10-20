@@ -92,8 +92,12 @@ def contar_amostras():
     summary="Buscar amostras de um animal",
     description="Retorna todas as amostras biológicas coletadas de um animal específico.",
 )
-def listar_amostras_por_animal(animal_id: str):
-    return amostra_service.listar_amostras_por_animal(animal_id)
+def listar_amostras_por_animal(
+    animal_id: str,
+    skip: int = Query(0, ge=0, description="Registros para pular (paginação)"),
+    limit: int = Query(100, ge=1, le=500, description="Limite máximo de registros"),
+):
+    return amostra_service.listar_amostras(animal_id=animal_id, skip=skip, limit=limit)
 
 
 @router.get(
