@@ -286,6 +286,90 @@ class TestUtilsNormalizacao(unittest.TestCase):
         self.assertEqual(normalizar_enum(StatusAmostra, "NI", default=StatusAmostra.DISPONIVEL), StatusAmostra.DISPONIVEL)
         self.assertIsNone(normalizar_enum(CondicaoArmazenamento, None, default=None))
 
+    def test_normalizar_reagente(self):
+        from src.utils.normalizacao.reagente import normalizar_unidade_medida, normalizar_etapa_reagente
+        from src.models.Reagente import UnidadeMedida, EtapaReagente
+
+        self.assertEqual(normalizar_unidade_medida("ml"), UnidadeMedida.ML)
+        self.assertEqual(normalizar_unidade_medida("Litro"), UnidadeMedida.L)
+        self.assertEqual(normalizar_unidade_medida("mg"), UnidadeMedida.MG)
+        self.assertEqual(normalizar_unidade_medida("frascos"), UnidadeMedida.UNIDADE)
+        self.assertEqual(normalizar_unidade_medida(None), UnidadeMedida.ML)
+
+        self.assertEqual(normalizar_etapa_reagente("extração"), EtapaReagente.EXTRAÇÃO)
+        self.assertEqual(normalizar_etapa_reagente("qpcr"), EtapaReagente.PCR)
+        self.assertEqual(normalizar_etapa_reagente("gel de agarose"), EtapaReagente.ELETRO)
+        self.assertIsNone(normalizar_etapa_reagente(None))
+
+    def test_reagente_quantidades_e_chaves(self):
+        from src.utils.normalizacao.reagente import (
+            normalizar_quantidade_unidade,
+            normalizar_quantidade_volume,
+            normalizar_chaves_reagente,
+            normalizar_chaves_estoque,
+            validar_lotes_unicos,
+            calcular_vencimento,
+            calcular_metricas_estoque,
+        )
+        from datetime import date, timedelta
+
+        # Quantidade de unidades
+        self.assertEqual(normalizar_quantidade_unidade("5"), 5)
+        self.assertEqual(normalizar_quantidade_unidade(None), 1)
+        with self.assertRaises(ValueError):
+            normalizar_quantidade_unidade(0)
+
+        # Quantidade de volume
+        self.assertEqual(normalizar_quantidade_volume("10.5"), 10.5)
+        self.assertIsNone(normalizar_quantidade_volume(None))
+        self.assertIsNone(normalizar_quantidade_volume("NI"))
+        with self.assertRaises(ValueError):
+            normalizar_quantidade_volume("-2")
+
+        # Normalização de chaves
+        p_reag = normalizar_chaves_reagente({"codigo": "C123", "validade": "2026-12-31", "_id": 10})
+        self.assertEqual(p_reag["reagente_codigo"], "C123")
+        self.assertEqual(p_reag["data_validade"], "2026-12-31")
+        self.assertEqual(p_reag["id"], 10)
+
+        p_est = normalizar_chaves_estoque({"nome": "Taq Polimerase", "_id": 5})
+        self.assertEqual(p_est["reagente_nome"], "Taq Polimerase")
+        self.assertEqual(p_est["id"], 5)
+
+        # Lotes únicos
+        validar_lotes_unicos([{"numero_lote": "L1"}, {"numero_lote": "L2"}])
+        with self.assertRaises(ValueError):
+            validar_lotes_unicos([{"numero_lote": "L1"}, {"numero_lote": "l1"}])
+
+        # Vencimento
+        vencido, dias = calcular_vencimento(date.today() - timedelta(days=5))
+        self.assertTrue(vencido)
+        self.assertLess(dias, 0)
+
+        # Métricas de estoque consolidadas
+        lotes = [
+            {"numero_lote": "L1", "quantidade_unidade": 2, "quantidade_volume": 500, "unidade_medida": "µl", "data_validade": date.today() + timedelta(days=30)},
+            {"numero_lote": "L2", "quantidade_unidade": 1, "quantidade_volume": 1, "unidade_medida": "ml", "data_validade": date.today() + timedelta(days=60)},
+        ]
+        qtd_un, qtd_vol, totais_un, totais_base, resumo = calcular_metricas_estoque(lotes)
+        self.assertEqual(qtd_un, 3)
+        self.assertEqual(totais_base["ml"], 2.0)
+        self.assertIn("ml", resumo)
+
+    def test_import_direto_submodulos(self):
+        from src.utils.normalizacao.comum import eh_nao_informado, normalizar_booleano
+        from src.utils.normalizacao.local import normalizar_coordenada
+        from src.utils.normalizacao.animal import normalizar_peso
+        from src.utils.normalizacao.amostra_exame import normalizar_material_biologico
+        from src.utils.normalizacao.reagente import normalizar_unidade_medida
+
+        self.assertTrue(eh_nao_informado(None))
+        self.assertTrue(normalizar_booleano("sim"))
+        self.assertIsNotNone(normalizar_coordenada("-5.089"))
+        self.assertEqual(normalizar_peso("1kg"), 1.0)
+        self.assertIsNotNone(normalizar_material_biologico("soro"))
+        self.assertIsNotNone(normalizar_unidade_medida("ml"))
+
 
 if __name__ == "__main__":
     unittest.main()

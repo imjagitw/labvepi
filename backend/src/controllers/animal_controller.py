@@ -1,7 +1,13 @@
 from typing import Optional, List
-from fastapi import APIRouter, HTTPException, Query, status
-
-# Importação da INSTÂNCIA do serviço e dos modelos
+from fastapi import Query, status
+from src.controllers.response_controller import (
+    criar_router,
+    RESPOSTAS_CRIAR,
+    RESPOSTAS_LISTAR,
+    RESPOSTAS_OBTER,
+    RESPOSTAS_ATUALIZAR,
+    RESPOSTAS_DELETAR,
+)
 from src.services.animal_service import (
     animal_service,
     Animal,
@@ -14,12 +20,13 @@ from src.services.animal_service import (
     StatusVital,
 )
 
-router = APIRouter(prefix="/animal", tags=["Animal"])
+router = criar_router(prefix="/animal", tags=["Animal"])
 
 @router.post(
     "/",
     response_model=Animal,
     status_code=status.HTTP_201_CREATED,
+    responses=RESPOSTAS_CRIAR,
     summary="Cadastrar um novo animal",
     description="Cria um novo animal automatizando espécie e classe a partir do catálogo do laboratório.",
 )
@@ -29,20 +36,15 @@ def criar_animal(
         False, description="Confirma cadastro de nova espécie caso não esteja no catálogo"
     ),
 ):
-    try:
-        return animal_service.criar_animal(
-            dados_animal=animal_input,
-            confirmar_nova_especie=confirmar_nova_especie,
-        )
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
-    except PermissionError as e:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
-
+    return animal_service.criar_animal(
+        dados_animal=animal_input,
+        confirmar_nova_especie=confirmar_nova_especie,
+    )
 
 @router.get(
     "/",
     response_model=List[Animal],
+    responses=RESPOSTAS_LISTAR,
     summary="Listar animais com filtros",
     description="Retorna a lista de animais cadastrados com suporte a filtros taxonômicos, status e busca.",
 )
@@ -68,31 +70,27 @@ def listar_animais(
 @router.get(
     "/{animal_id}",
     response_model=Animal,
+    responses=RESPOSTAS_OBTER,
     summary="Buscar animal por ID",
     description="Recupera um animal cadastrado pelo seu ID único de laboratório.",
 )
 def obter_animal(animal_id: str):
-    try:
-        return animal_service.obter_animal(animal_id)
-    except KeyError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    return animal_service.obter_animal(animal_id)
 
 @router.get(
     "/{animal_id}/detalhes",
     response_model=AnimalDetails,
+    responses=RESPOSTAS_OBTER,
     summary="Buscar detalhes completos do animal por ID",
     description="Recupera os detalhes completos do animal, incluindo padronização de campos não informados, dados da espécie e lista de amostras associadas.",
 )
 def obter_animal_detalhes(animal_id: str):
-    try:
-        return animal_service.obter_animal_detalhes(animal_id)
-    except KeyError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
-
+    return animal_service.obter_animal_detalhes(animal_id)
 
 @router.put(
     "/{animal_id}",
     response_model=Animal,
+    responses=RESPOSTAS_ATUALIZAR,
     summary="Atualizar animal",
     description="Atualiza dados de um animal existente, re-resolvendo espécie automaticamente se necessário.",
 )
@@ -103,29 +101,18 @@ def atualizar_animal(
         False, description="Confirma cadastro de nova espécie caso não esteja no catálogo"
     ),
 ):
-    try:
-        return animal_service.atualizar_animal(
-            animal_id=animal_id,
-            dados_atualizacao=animal_update,
-            confirmar_nova_especie=confirmar_nova_especie,
-        )
-    except KeyError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
-    except PermissionError as e:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
+    return animal_service.atualizar_animal(
+        animal_id=animal_id,
+        dados_atualizacao=animal_update,
+        confirmar_nova_especie=confirmar_nova_especie,
+    )
 
 @router.delete(
     "/{animal_id}",
+    responses=RESPOSTAS_DELETAR,
     summary="Remover animal",
     description="Remove um animal cadastrado pelo seu ID único de laboratório.",
 )
 def deletar_animal(animal_id: str):
-    try:
-        animal_service.deletar_animal(animal_id)
-        return {"message": "Animal removido com sucesso", "animal_id": animal_id}
-    except KeyError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
-    except PermissionError as e:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
+    animal_service.deletar_animal(animal_id)
+    return None

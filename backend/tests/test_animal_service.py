@@ -2,10 +2,8 @@ import unittest
 import tempfile
 import sys
 from pathlib import Path
-
 # Garante import do backend/src
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-
 from src.models.Animal import (
     Animal,
     AnimalCreate,
@@ -23,7 +21,6 @@ from src.repositories.especie_repository import EspecieRepository
 from src.repositories.animal_repository import AnimalRepository
 from src.services.especie_service import EspecieService
 from src.services.animal_service import AnimalService
-
 
 class TestAnimalService(unittest.TestCase):
     def setUp(self):
@@ -557,7 +554,6 @@ class TestAnimalService(unittest.TestCase):
         pesados = self.animal_repo.buscar_por_faixa_peso(min_kg=1.0)
         self.assertTrue(any(a.animal_id == "BUG_INDEX" for a in pesados))
         self.assertFalse(any(a.animal_id == "BAT_INDEX" for a in pesados))
-
 
 if __name__ == "__main__":
     unittest.main()

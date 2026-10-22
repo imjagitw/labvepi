@@ -1,6 +1,5 @@
 from typing import Optional, Union, List, Dict, Any
 from pydantic.fields import FieldInfo
-
 from src.models.EstoqueReagente import (
     EstoqueReagente,
     EstoqueReagenteCreate,
@@ -17,15 +16,12 @@ from src.repositories.estoque_reagente_repository import (
     EstoqueReagenteRepository,
     estoque_reagente_repository,
 )
-from src.utils.normalizacao import eh_nao_informado
-
-# Aliases aceitos na entrada da API -> nome canônico dos campos no model EstoqueReagente
-_ALIASES_ESTOQUE = {
-    "nome": "reagente_nome",
-    "codigo": "reagente_codigo",
-    "lotes_reagente": "lotes",
-    "itens": "lotes",
-}
+from src.utils.normalizacao import (
+    eh_nao_informado,
+    normalizar_chaves_estoque,
+    calcular_metricas_estoque,
+    _ALIASES_ESTOQUE,
+)
 
 # Rótulos amigáveis para mensagens de erro de validação
 _ROTULOS_CAMPOS = {
@@ -87,21 +83,7 @@ class EstoqueReagenteService:
     @staticmethod
     def _normalizar_chaves(payload: Dict[str, Any]) -> Dict[str, Any]:
         """Converte aliases aceitos na entrada para os nomes canônicos do domínio EstoqueReagente."""
-        normalizado: Dict[str, Any] = {}
-        for chave, valor in payload.items():
-            if chave == "_id":
-                if isinstance(valor, int) or (isinstance(valor, str) and valor.strip().isdigit()):
-                    canonica = "id"
-                    valor = int(valor)
-                else:
-                    canonica = chave
-            else:
-                canonica = _ALIASES_ESTOQUE.get(chave, chave)
-
-            if canonica in normalizado and chave != canonica:
-                continue
-            normalizado[canonica] = valor
-        return normalizado
+        return normalizar_chaves_estoque(payload)
 
     def aplicar_obrigatoriedade(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         """Valida campos obrigatórios da entidade EstoqueReagente."""
@@ -138,21 +120,17 @@ class EstoqueReagenteService:
         if self.reagente_service:
             return self.reagente_service.consolidar_estoque(nome=nome, codigo=codigo, lotes=lotes)
 
-        # Fallback de consolidação caso ReagenteService não esteja injetado
-        qtd_unidades = sum(l.quantidade_unidade for l in lotes)
-        totais_un: Dict[str, float] = {}
-        for l in lotes:
-            u = str(l.unidade_medida.value if hasattr(l.unidade_medida, "value") else (l.unidade_medida or "ml"))
-            qtd = (l.quantidade_volume * l.quantidade_unidade) if l.quantidade_volume is not None else float(l.quantidade_unidade)
-            totais_un[u] = round(totais_un.get(u, 0.0) + qtd, 4)
-
+        # Fallback de consolidação com cálculo dimensional completo
+        qtd_unidades, qtd_volume, totais_un, totais_base, resumo = calcular_metricas_estoque(lotes)
         return EstoqueReagente(
             reagente_nome=nome,
             reagente_codigo=codigo,
             lotes=lotes,
             quantidade_total_unidades=qtd_unidades,
+            quantidade_total_volume=qtd_volume,
             totais_por_unidade=totais_un,
-            resumo_estoque=f"{qtd_unidades} un",
+            totais_convertidos_base=totais_base,
+            resumo_estoque=resumo,
         )
 
     def sincronizar_lotes(self, nome_reagente: str) -> Optional[EstoqueReagente]:
@@ -492,7 +470,6 @@ class EstoqueReagenteService:
                 self.reagente_repo.delete(lote.id or lote.reagente_id)
 
         return self.estoque_repo.delete(identificador)
-
 
 # Instância singleton para injeção de dependência centralizada
 estoque_reagente_service = EstoqueReagenteService()

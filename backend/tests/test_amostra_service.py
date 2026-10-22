@@ -3,10 +3,8 @@ import sys
 from pathlib import Path
 from datetime import date
 from pydantic import ValidationError
-
 # Garante import do backend/src
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-
 from src.models.Amostra import (
     Amostra,
     AmostraCreate,
@@ -26,7 +24,6 @@ from src.services.animal_service import AnimalService
 from src.services.amostra_service import AmostraService
 from fastapi.testclient import TestClient
 from src.main import app
-
 
 class TestAmostraService(unittest.TestCase):
     def setUp(self):
@@ -218,7 +215,6 @@ class TestAmostraService(unittest.TestCase):
         self.assertEqual(detalhes_parc.nome_coletor, "Não informado")
         self.assertEqual(detalhes_parc.condicao_armazenamento, "Não informado")
         self.assertEqual(detalhes_parc.caixa_armazenamento, "Não informado")
-
 
 class TestAmostraController(unittest.TestCase):
     def setUp(self):

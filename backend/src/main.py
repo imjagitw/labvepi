@@ -7,6 +7,7 @@ from src.controllers.estoque_reagente_controller import router as estoque_reagen
 from src.controllers.reagente_controller import router as reagente_router
 from src.models.Especie.especie_details import EspecieDetails
 from src.models.Animal.animal import Animal
+from src.controllers.response_controller import registrar_tratamento_erros
 
 # Garante a resolução completa de referências bidirecionais para os schemas OpenAPI
 EspecieDetails.model_rebuild(_types_namespace={"Animal": Animal})
@@ -16,6 +17,8 @@ app = FastAPI(
     description="API do Laboratório de Vigilância de Epizootias — UFPI",
     version="1.0.0",
 )
+
+registrar_tratamento_erros(app)
 
 app.include_router(animal_router)
 app.include_router(especie_router)

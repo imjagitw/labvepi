@@ -1,8 +1,12 @@
 from pathlib import Path
 from typing import Optional, Union, List, Dict, Any
-from src.models.Especie import Especie, EspecieCreate, EspecieUpdate, Classe
+from src.models.Especie import Especie, EspecieCreate, EspecieUpdate, EspecieDetails, Classe
+from src.models.Animal.animal import Animal
 from src.repositories.especie_repository import EspecieRepository, especie_repository
 from etl.catalogo import normalizar_classe_taxonomica, formatar_nome_cientifico, importar_catalogo_csv
+
+# Garante resolução completa dos tipos para schemas OpenAPI
+EspecieDetails.model_rebuild(_types_namespace={"Animal": Animal})
 
 class EspecieService:
     """
@@ -261,3 +265,13 @@ class EspecieService:
         )
 
 especie_service = EspecieService()
+
+__all__ = [
+    "especie_service",
+    "EspecieService",
+    "Especie",
+    "EspecieCreate",
+    "EspecieUpdate",
+    "EspecieDetails",
+    "Classe",
+]

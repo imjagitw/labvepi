@@ -1,7 +1,14 @@
 from typing import Optional, List
-from fastapi import APIRouter, HTTPException, Query, status
-
-# Importação centralizada através da instância do serviço para evitar importações circulares
+from fastapi import Query, status
+from src.controllers.response_controller import (
+    criar_router,
+    RESPOSTAS_CRIAR,
+    RESPOSTAS_LISTAR,
+    RESPOSTAS_OBTER,
+    RESPOSTAS_ATUALIZAR,
+    RESPOSTAS_DELETAR,
+    RESPOSTAS_CONTAGEM,
+)
 from src.services.amostra_service import (
     amostra_service,
     Amostra,
@@ -15,12 +22,13 @@ from src.services.amostra_service import (
     StatusAmostra,
 )
 
-router = APIRouter(prefix="/amostra", tags=["Amostra"])
+router = criar_router(prefix="/amostra", tags=["Amostra"])
 
 @router.post(
     "/",
     response_model=Amostra,
     status_code=status.HTTP_201_CREATED,
+    responses=RESPOSTAS_CRIAR,
     summary="Cadastrar uma nova amostra biológica",
     description="Cadastra uma nova amostra no acervo, validando o identificador único e o animal de origem vinculado.",
 )
@@ -33,21 +41,16 @@ def criar_amostra(
         False, description="Confirma vínculo a animal ainda não cadastrado no catálogo"
     ),
 ):
-    try:
-        return amostra_service.criar_amostra(
-            dados_amostra=amostra_input,
-            confirmar_nova_amostra=confirmar_nova_amostra,
-            confirmar_novo_animal=confirmar_novo_animal,
-        )
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
-    except PermissionError as e:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
-
+    return amostra_service.criar_amostra(
+        dados_amostra=amostra_input,
+        confirmar_nova_amostra=confirmar_nova_amostra,
+        confirmar_novo_animal=confirmar_novo_animal,
+    )
 
 @router.get(
     "/",
     response_model=List[Amostra],
+    responses=RESPOSTAS_LISTAR,
     summary="Listar amostras com filtros",
     description="Retorna a lista de amostras biológicas cadastradas com suporte a múltiplos filtros analíticos, busca e paginação.",
 )
@@ -76,9 +79,9 @@ def listar_amostras(
         limit=limit,
     )
 
-
 @router.get(
     "/contagem",
+    responses=RESPOSTAS_CONTAGEM,
     summary="Total de amostras cadastradas",
     description="Retorna a quantidade total de amostras biológicas registradas no acervo do laboratório.",
 )
@@ -89,6 +92,7 @@ def contar_amostras():
 @router.get(
     "/animal/{animal_id}",
     response_model=List[Amostra],
+    responses=RESPOSTAS_LISTAR,
     summary="Buscar amostras de um animal",
     description="Retorna todas as amostras biológicas coletadas de um animal específico.",
 )
@@ -99,36 +103,30 @@ def listar_amostras_por_animal(
 ):
     return amostra_service.listar_amostras(animal_id=animal_id, skip=skip, limit=limit)
 
-
 @router.get(
     "/{amostra_id}",
     response_model=Amostra,
+    responses=RESPOSTAS_OBTER,
     summary="Buscar amostra por ID",
     description="Recupera uma amostra biológica pelo seu identificador único laboratorial.",
 )
 def obter_amostra(amostra_id: str):
-    try:
-        return amostra_service.obter_amostra(amostra_id)
-    except KeyError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
-
+    return amostra_service.obter_amostra(amostra_id)
 
 @router.get(
     "/{amostra_id}/detalhes",
     response_model=AmostraDetails,
+    responses=RESPOSTAS_OBTER,
     summary="Buscar detalhes completos da amostra por ID",
     description="Recupera os detalhes completos da amostra, incluindo saneamento de campos não informados, dados do animal de origem e lista dos exames realizados.",
 )
 def obter_amostra_detalhes(amostra_id: str):
-    try:
-        return amostra_service.obter_amostra_detalhes(amostra_id)
-    except KeyError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
-
+    return amostra_service.obter_amostra_detalhes(amostra_id)
 
 @router.patch(
     "/{amostra_id}",
     response_model=Amostra,
+    responses=RESPOSTAS_ATUALIZAR,
     summary="Atualizar amostra",
     description="Atualiza os dados de uma amostra existente, mantendo integridade com o animal de origem e re-normalizando matriz biológica.",
 )
@@ -142,34 +140,19 @@ def atualizar_amostra(
         False, description="Confirma alteração para animal ainda não cadastrado"
     ),
 ):
-    try:
-        return amostra_service.atualizar_amostra(
-            amostra_id=amostra_id,
-            dados_atualizacao=amostra_update,
-            confirmar_atualizacao_amostra=confirmar_atualizacao_amostra,
-            confirmar_novo_animal=confirmar_novo_animal,
-        )
-    except KeyError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
-    except PermissionError as e:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
-
+    return amostra_service.atualizar_amostra(
+        amostra_id=amostra_id,
+        dados_atualizacao=amostra_update,
+        confirmar_atualizacao_amostra=confirmar_atualizacao_amostra,
+        confirmar_novo_animal=confirmar_novo_animal,
+    )
 
 @router.delete(
     "/{amostra_id}",
-    status_code=status.HTTP_204_NO_CONTENT,
+    responses=RESPOSTAS_DELETAR,
     summary="Remover amostra",
     description="Remove uma amostra biológica cadastrada pelo seu identificador único de laboratório.",
 )
 def deletar_amostra(amostra_id: str):
-    try:
-        amostra_service.deletar_amostra(amostra_id)
-        return None  # HTTP_204_NO_CONTENT indica ausência de resposta corporal.
-    except KeyError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
-    except PermissionError as e:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
+    amostra_service.deletar_amostra(amostra_id)
+    return None
