@@ -15,7 +15,6 @@ from src.repositories.reagente_repository import ReagenteRepository, reagente_re
 from src.utils.normalizacao import (
     eh_nao_informado,
     normalizar_data,
-    normalizar_enum,
     normalizar_unidade_medida,
     normalizar_etapa_reagente,
     normalizar_quantidade_unidade,
@@ -25,7 +24,6 @@ from src.utils.normalizacao import (
     calcular_vencimento,
     calcular_metricas_estoque,
     FATORES_CONVERSAO,
-    _ALIASES_REAGENTE,
 )
 
 # Garante compatibilidade dos atributos de estado no modelo Reagente em tempo de execução

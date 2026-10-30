@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from contextlib import asynccontextmanager
 from src.controllers.animal_controller import router as animal_router
 from src.controllers.especie_controller import router as especie_router
 from src.controllers.amostra_controller import router as amostra_router
@@ -8,14 +9,28 @@ from src.controllers.reagente_controller import router as reagente_router
 from src.models.Especie.especie_details import EspecieDetails
 from src.models.Animal.animal import Animal
 from src.controllers.response_controller import registrar_tratamento_erros
+from src.data.connection import DatabaseManager
 
 # Garante a resolução completa de referências bidirecionais para os schemas OpenAPI
 EspecieDetails.model_rebuild(_types_namespace={"Animal": Animal})
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Inicializa o pool de conexão na subida do servidor
+    try:
+        DatabaseManager.get_client()
+        print(f"✅ Conectado ao MongoDB ({DatabaseManager.get_database().name})")
+    except Exception as e:
+        print(f"⚠️ Aviso: Não foi possível conectar ao MongoDB: {e}")
+    yield
+    # Fecha conexões ao encerrar
+    DatabaseManager.close_connection()
 
 app = FastAPI(
     title="LABVEPI API",
     description="API do Laboratório de Vigilância de Epizootias — UFPI",
     version="1.0.0",
+    lifespan=lifespan,
 )
 
 registrar_tratamento_erros(app)

@@ -256,7 +256,7 @@ class TestAmostraController(unittest.TestCase):
         res_det = self.client.get("/amostra/API_AMS01/detalhes")
         self.assertEqual(res_det.status_code, 200)
         self.assertEqual(res_det.json()["amostra_id"], "API_AMS01")
-        self.assertEqual(res_det.json()["_id"], 1)
+        self.assertEqual(res_det.json()["_id"], data.get("_id") or data.get("id"))
 
         # 4. Listar
         res_list = self.client.get("/amostra/")

@@ -429,19 +429,27 @@ Mapeia a complexa planilha histórica `Planilha dos morcegos (atualizada 2022)_o
 
 ## 8. Camada de Repositórios e Persistência (`src/repositories/`)
 
-### 8.1. Padrão DAO e Indexação em Memória $O(1)$
-Os repositórios (`backend/src/repositories/`) implementam o padrão DAO (*Data Access Object*). Para conferir agilidade a testes, scripts de migração e consultas, utilizam estruturas indexadas em memória com chaves normalizadas (`casefold()`, `strip()`), garantindo buscas em tempo constante $O(1)$ para chaves primárias e índices secundários.
+### 8.1. Padrão DAO, Modo Dual e Persistência no MongoDB
+Os repositórios (`backend/src/repositories/`) implementam o padrão DAO (*Data Access Object*) com arquitetura de **modo dual de operação**:
+1. **Modo MongoDB Ativo (Produção / API)**: Conecta-se ao MongoDB (`pibit_app_dev` ou `pibit_app` via pool `DatabaseManager` em `src/data/connection.py`). Todas as operações de escrita (`create`, `update`, `delete`) realizam I/O atômico no banco e sincronizam os caches internos.
+2. **Modo Isolado em Memória (Testes Unitários de Services)**: Repositórios instanciados sem `db` ou com `use_mongo=False` operam estritamente em memória com indexação $O(1)$, garantindo isolamento total, velocidade extrema e evitando poluição da base real de pesquisa.
+3. **Serialização BSON-Safe**: Para contornar a incompatibilidade nativa do PyMongo com tipos `datetime.date`, todos os modelos são serializados através de `model_dump(mode="json", by_alias=True, exclude_none=True)` antes de serem gravados nas coleções.
+4. **Tratamento de Tipos de Chave Primária**: As operações que aceitam identificadores numéricos ou strings de rotas HTTP convertem dinamicamente identificadores compostos por dígitos para `int`, garantindo que queries `{"_id": id}` correspondam com precisão ao tipo BSON armazenado no MongoDB.
 
-### 8.2. Matriz de Repositórios e Métodos Disponíveis
+### 8.2. Gerenciador de Conexão e Configuração (`src/data/connection.py` e `src/config/`)
+- **`Settings` / `settings` (`src/config/config.py`)**: Carrega variáveis do arquivo `.env` via `pydantic-settings` (`MONGODB_URI`, `DATABASE_NAME`, `FASTAPI_HOST`, `FASTAPI_PORT`).
+- **`DatabaseManager` (`src/data/connection.py`)**: Gerencia o ciclo de vida do `MongoClient` através de `connect()`, `disconnect()` e `get_database()`, com suporte a timeouts configuráveis e pool persistente integrado ao `lifespan` do FastAPI em [src/main.py](file:///home/gio/Documents/UNIVERSIDADE/Pesquisa/PIBIT%202026-2027/pibitapp/backend/src/main.py).
 
-| Repositório | Arquivo | Índices em Memória | Principais Métodos |
-| :--- | :--- | :--- | :--- |
-| **`EspecieRepository`** | [especie_repository.py](file:///home/gio/Documents/UNIVERSIDADE/Pesquisa/PIBIT%202026-2027/pibitapp/backend/src/repositories/especie_repository.py) | `_por_id` (int), `_por_comum` (str), `_por_cientifico` (str), `_por_classe` (Classe $\rightarrow$ List) | `create`, `save`, `update`, `delete`, `buscar_por_id`, `buscar_por_nome_comum`, `buscar_por_nome_cientifico`, `buscar_por_classe`, `listar`, `count`, `exists`, `clear` |
-| **`AnimalRepository`** | [animal_repository.py](file:///home/gio/Documents/UNIVERSIDADE/Pesquisa/PIBIT%202026-2027/pibitapp/backend/src/repositories/animal_repository.py) | `_por_animal_id` (str), `_por_id` (int), `_por_projeto_id`, `_por_microchip`, `_por_nome_comum`, `_por_nome_cientifico`, `_por_classe`, `_por_sexo`, `_por_faixa_etaria`, `_por_orgao_origem`, `_por_regime_vida`, `_por_status_vital`, `_por_funcao` | `create`, `save`, `update`, `delete`, `buscar_por_animal_id`, `buscar_por_especie`, `listar` (filtros múltiplos, busca textual e paginação), `count`, `exists`, `clear` |
-| **`AmostraRepository`** | [amostra_repository.py](file:///home/gio/Documents/UNIVERSIDADE/Pesquisa/PIBIT%202026-2027/pibitapp/backend/src/repositories/amostra_repository.py) | `_por_amostra_id` (str), `_por_id` (int), `_por_animal_id` (1:N $\rightarrow$ List), `_por_condicao_armazenamento`, `_por_destino_amostra`, `_por_fase_amostra`, `_por_material_biologico`, `_por_status_amostra` | `create`, `save`, `update`, `delete`, `buscar_por_amostra_id`, `buscar_por_animal_id`, `listar` (filtros analíticos, ordenação e paginação), `count`, `exists`, `clear` |
-| **`ExameRepository`** | [exame_repository.py](file:///home/gio/Documents/UNIVERSIDADE/Pesquisa/PIBIT%202026-2027/pibitapp/backend/src/repositories/exame_repository.py) | `_por_id` (int), `_por_exame_id` (str), `_por_amostra_id` (1:N $\rightarrow$ List), `_por_tipo_exame`, `_por_resultado`, `_por_teste_laboratorial`, `_por_responsavel` | `create`, `save`, `update`, `delete`, `buscar_por_id`, `buscar_por_exame_id`, `buscar_por_amostra_id`, `listar` (filtros analíticos, ordenação e paginação), `count`, `exists`, `clear` |
-| **`ReagenteRepository`** | [reagente_repository.py](file:///home/gio/Documents/UNIVERSIDADE/Pesquisa/PIBIT%202026-2027/pibitapp/backend/src/repositories/reagente_repository.py) | `_por_id` (int), `_por_reagente_id` (str), `_por_codigo` (1:N $\rightarrow$ List), `_por_nome` (1:N $\rightarrow$ List), `_por_lote` (1:N $\rightarrow$ List), `_por_marca`, `_por_local` | `create`, `save`, `update`, `delete`, `buscar_por_id`, `buscar_por_codigo`, `buscar_por_nome`, `buscar_por_lote`, `listar` (filtros de vencimento, busca textual, paginação), `count`, `exists`, `clear` |
-| **`EstoqueReagenteRepository`** | [estoque_reagente_repository.py](file:///home/gio/Documents/UNIVERSIDADE/Pesquisa/PIBIT%202026-2027/pibitapp/backend/src/repositories/estoque_reagente_repository.py) | `_por_id` (int), `_por_nome` (str $\rightarrow$ EstoqueReagente), `_por_codigo` (1:N $\rightarrow$ List) | `create`, `save`, `update`, `delete`, `buscar_por_id`, `buscar_por_nome`, `buscar_por_codigo`, `listar` (busca textual, ordenação, paginação), `count`, `exists`, `clear` |
+### 8.3. Matriz de Repositórios e Coleções MongoDB
+
+| Repositório | Coleção MongoDB | Arquivo | Chaves e Índices | Principais Métodos |
+| :--- | :--- | :--- | :--- | :--- |
+| **`EspecieRepository`** | `especies` | [especie_repository.py](file:///home/gio/Documents/UNIVERSIDADE/Pesquisa/PIBIT%202026-2027/pibitapp/backend/src/repositories/especie_repository.py) | `_id` (int), `nome` (str), `nome_cientifico` (str), `classe` | `create`, `save`, `update`, `delete`, `buscar_por_id`, `buscar_por_nome_comum`, `buscar_por_nome_cientifico`, `buscar_por_classe`, `listar`, `count`, `exists`, `clear` |
+| **`AnimalRepository`** | `animais` | [animal_repository.py](file:///home/gio/Documents/UNIVERSIDADE/Pesquisa/PIBIT%202026-2027/pibitapp/backend/src/repositories/animal_repository.py) | `animal_id` (str), `_id` (int), `animal_id_projeto`, `microchip`, `classe`, `sexo`, `faixa_etaria`, `orgao_origem`, `status_vital` | `create`, `save`, `update`, `delete`, `buscar_por_animal_id`, `buscar_por_id`, `buscar_por_especie`, `listar`, `count`, `exists`, `clear` |
+| **`AmostraRepository`** | `amostras` | [amostra_repository.py](file:///home/gio/Documents/UNIVERSIDADE/Pesquisa/PIBIT%202026-2027/pibitapp/backend/src/repositories/amostra_repository.py) | `amostra_id` (str), `_id` (int), `animal_id`, `material_biologico`, `status_amostra`, `fase_amostra`, `destino_amostra` | `create`, `save`, `update`, `delete`, `buscar_por_amostra_id`, `buscar_por_id`, `buscar_por_animal_id`, `listar`, `count`, `exists`, `clear` |
+| **`ExameRepository`** | `exames` | [exame_repository.py](file:///home/gio/Documents/UNIVERSIDADE/Pesquisa/PIBIT%202026-2027/pibitapp/backend/src/repositories/exame_repository.py) | `exame_id` (str), `_id` (int), `amostra_id`, `tipo_exame`, `resultado`, `teste_laboratorial`, `responsavel_exame` | `create`, `save`, `update`, `delete`, `buscar_por_id`, `buscar_por_exame_id`, `buscar_por_amostra_id`, `listar`, `count`, `exists`, `clear` |
+| **`ReagenteRepository`** | `reagentes` | [reagente_repository.py](file:///home/gio/Documents/UNIVERSIDADE/Pesquisa/PIBIT%202026-2027/pibitapp/backend/src/repositories/reagente_repository.py) | `reagente_id` (str), `_id` (int), `reagente_codigo`, `reagente_nome`, `numero_lote`, `marca`, `local_armazenamento` | `create`, `save`, `update`, `delete`, `buscar_por_id`, `buscar_por_codigo`, `buscar_por_nome`, `buscar_por_lote`, `listar`, `count`, `exists`, `clear` |
+| **`EstoqueReagenteRepository`** | `estoque_reagentes` | [estoque_reagente_repository.py](file:///home/gio/Documents/UNIVERSIDADE/Pesquisa/PIBIT%202026-2027/pibitapp/backend/src/repositories/estoque_reagente_repository.py) | `_id` (int), `reagente_nome` (str), `reagente_codigo` | `create`, `save`, `update`, `delete`, `buscar_por_id`, `buscar_por_nome`, `buscar_por_codigo`, `listar`, `count`, `exists`, `clear` |
 
 ---
 
@@ -553,7 +561,7 @@ Os controladores **não acessam repositórios nem modelos de persistência diret
 
 ## 10. Suíte de Testes Automatizados (`tests/`)
 
-O backend conta com **84 testes automatizados** cobrindo todas as camadas arquiteturais:
+O backend conta com **85 testes automatizados** cobrindo todas as camadas arquiteturais:
 
 1. **Testes de Animais ([test_animal_service.py](file:///home/gio/Documents/UNIVERSIDADE/Pesquisa/PIBIT%202026-2027/pibitapp/backend/tests/test_animal_service.py))**:
    - Resolução taxonômica pelo catálogo;

@@ -1,4 +1,3 @@
-from datetime import date
 from typing import Optional, Union, List, Dict, Any
 from src.models.Amostra import (
     Amostra,

@@ -8,6 +8,7 @@ class Exame(BaseModel):
 
     # obrigatorios
     id: Optional[int] = Field(default=None, alias="_id", description="Chave primária autoincrementada no banco")
+    exame_id: Optional[str] = Field(default=None, description="Identificador único padrão do laboratório (ex: EX_0001)")
     amostra_id: str # chave estrangeira para a tabela/documento de amostra
     tipo_exame: TipoExame # patógeno ou painel investigado
     resultado: ResultadoExame = Field(..., alias="resultado_detalhado") # resultado categorizado do ensaio

@@ -1,5 +1,4 @@
 from typing import Optional, Union, List, Dict, Any
-from pydantic.fields import FieldInfo
 from src.models.EstoqueReagente import (
     EstoqueReagente,
     EstoqueReagenteCreate,
@@ -20,7 +19,6 @@ from src.utils.normalizacao import (
     eh_nao_informado,
     normalizar_chaves_estoque,
     calcular_metricas_estoque,
-    _ALIASES_ESTOQUE,
 )
 
 # Rótulos amigáveis para mensagens de erro de validação
