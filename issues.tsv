@@ -1,0 +1,31 @@
+Title	URL	Assignees	Status	Linked pull requests	Sub-issues progress
+Cadastrar amostra a partir de um animal	https://github.com/imjagitw/labvepi/issues/6		Backlog		
+Cadastrar exame a partir de amostra	https://github.com/imjagitw/labvepi/issues/7		Backlog		
+Listar animais com amostras e exames em visão hierárquica	https://github.com/imjagitw/labvepi/issues/8		Backlog		
+Editar animais, amostras, exames e reagentes	https://github.com/imjagitw/labvepi/issues/9		Backlog		
+Excluir registros com proteção de vínculos	https://github.com/imjagitw/labvepi/issues/10		Backlog		
+Filtrar e paginar a página de registros	https://github.com/imjagitw/labvepi/issues/11		Backlog		
+Centralizar login e permissões na API	https://github.com/imjagitw/labvepi/issues/5		A fazer		
+Migrar scripts de governança do banco para o backend e criar índices de sincronização	https://github.com/imjagitw/labvepi/issues/22		A fazer		
+Criar a arquitetura base do App Mobile Offline-First e da versão Web	https://github.com/imjagitw/labvepi/issues/13		A fazer		
+Criar a API do backend	https://github.com/imjagitw/labvepi/issues/4		Em andamento		
+Proteger o acesso ao banco	https://github.com/imjagitw/labvepi/issues/3		Concluído		
+Conferir dados e regras	https://github.com/imjagitw/labvepi/issues/1		Concluído		
+Preparar e organizar o banco MongoDB	https://github.com/imjagitw/labvepi/issues/2		Concluído		
+Guardar dados e ações no celular sem conexão	https://github.com/imjagitw/labvepi/issues/14		Backlog		
+Sincronizar alterações e resolver conflitos	https://github.com/imjagitw/labvepi/issues/15		Backlog		
+Ajustar importação, relatórios e documentação ao fluxo novo	https://github.com/imjagitw/labvepi/issues/16		Backlog		
+Padronizar configuração de acesso ao banco para a VM da UFPI e isolar ambientes (pibit_app vs pibit_app_dev)	https://github.com/imjagitw/labvepi/issues/23		Backlog		
+Adaptar modelos Pydantic e regras de domínio para sincronização offline-first	https://github.com/imjagitw/labvepi/issues/24		Backlog		
+Criar telas de cadastro no App Mobile com validação offline (Animal, Espécie, Amostra, Exame e Reagente)	https://github.com/imjagitw/labvepi/issues/25		Backlog		
+Criar central de sincronização e resolução de conflitos no App Mobile	https://github.com/imjagitw/labvepi/issues/26		Backlog		
+Criar painel e notificações de alertas de reagentes (Mobile e Web)	https://github.com/imjagitw/labvepi/issues/27		Backlog		
+Criar telas de login, solicitação de acesso e gestão de usuários (Mobile e Web)	https://github.com/imjagitw/labvepi/issues/28		Backlog		
+Construir os fluxos de cadastro e consulta na interface Web (Desktop)	https://github.com/imjagitw/labvepi/issues/29		Backlog		
+Expor importação de planilhas na API e criar tela de Importação em Lote na Web	https://github.com/imjagitw/labvepi/issues/30		Backlog		
+Criar endpoints de agregação e tela Web de Relatórios e Indicadores Epidemiológicos	https://github.com/imjagitw/labvepi/issues/31		Backlog		
+Criar endpoint e tela Web para mesclagem de animais e amostras duplicados	https://github.com/imjagitw/labvepi/issues/32		Backlog		
+Preparar ambiente na máquina virtual da UFPI (Rede, Nginx, HTTPS e Variáveis)	https://github.com/imjagitw/labvepi/issues/33		Backlog		
+Containerizar e automatizar deploy da API, da Web e geração do build Mobile	https://github.com/imjagitw/labvepi/issues/34		Backlog		
+Automatizar rotina de backup (mongodump) e monitoramento na VM da UFPI	https://github.com/imjagitw/labvepi/issues/35		Backlog		
+Homologar App Mobile Offline e Web em campo/bancada e descontinuar o Streamlit	https://github.com/imjagitw/labvepi/issues/36		Backlog		

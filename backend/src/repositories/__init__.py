@@ -4,6 +4,7 @@ from .amostra_repository import AmostraRepository, amostra_repository
 from .exame_repository import ExameRepository, exame_repository
 from .reagente_repository import ReagenteRepository, reagente_repository
 from .estoque_reagente_repository import EstoqueReagenteRepository, estoque_reagente_repository
+from .usuario_repository import UsuarioRepository, usuario_repository
 
 __all__ = [
     "EspecieRepository",
@@ -18,4 +19,6 @@ __all__ = [
     "reagente_repository",
     "EstoqueReagenteRepository",
     "estoque_reagente_repository",
+    "UsuarioRepository",
+    "usuario_repository",
 ]

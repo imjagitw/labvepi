@@ -21,6 +21,7 @@ from src.utils.normalizacao import (
     normalizar_booleano,
     normalizar_enum,
 )
+from src.utils.excecoes import ConfirmacaoNecessariaError
 
 # Aliases aceitos na entrada -> nome canônico do campo no model Amostra
 _ALIASES_AMOSTRA = {
@@ -35,9 +36,12 @@ _ALIASES_AMOSTRA = {
     "observacoes": "amostra_observacoes",
 }
 
+# Chave primária autoincrementada: gerada exclusivamente pelo banco/repositório
+_CAMPOS_PROIBIDOS_ENTRADA = ("id", "_id")
+
 # Rótulos amigáveis para mensagens de erro de validação
 _ROTULOS_CAMPOS = {
-    "amostra_id": "ID da amostra (_id)",
+    "amostra_id": "ID da amostra (amostra_id)",
     "animal_id": "animal vinculado (animal)",
     "data_coleta_amostra": "data de coleta (data_coleta)",
     "material_biologico": "material biológico (metodo_coleta)",
@@ -323,10 +327,30 @@ class AmostraService:
     # -------------------------------------------------------------------------
     # OPERAÇÕES DE CRUD:
     # -------------------------------------------------------------------------
+    def _verificar_animal_vinculado(self, animal_id: str, confirmar_novo_animal: bool) -> None:
+        """
+        Regra de integridade referencial: vincular a amostra a um animal ainda não
+        cadastrado exige confirmação explícita (HTTP 409 + 'confirmar_novo_animal').
+        """
+        if not (self.animal_service and hasattr(self.animal_service, "obter_animal")):
+            return
+        try:
+            self.animal_service.obter_animal(animal_id)
+        except KeyError:
+            if not confirmar_novo_animal:
+                raise ConfirmacaoNecessariaError(
+                    mensagem=(
+                        f"Animal com ID '{animal_id}' não encontrado no acervo do laboratório. "
+                        "Deseja vincular a amostra a um animal ainda não cadastrado?"
+                    ),
+                    codigo="ANIMAL_NAO_ENCONTRADO",
+                    confirmacao="confirmar_novo_animal",
+                    contexto={"animal_id": animal_id},
+                )
+
     def criar_amostra(
         self,
         dados_amostra: Union[Dict[str, Any], AmostraCreate],
-        confirmar_nova_amostra: bool = False,
         confirmar_novo_animal: bool = False,
         usuario: Optional[Any] = None,
     ) -> Amostra:
@@ -338,13 +362,20 @@ class AmostraService:
             conf_animal = dados_amostra.confirmar_novo_animal or confirmar_novo_animal
         else:
             payload = dict(dados_amostra)
-            conf_animal = payload.pop("confirmar_novo_animal", False) or confirmar_novo_animal
+            conf_animal = payload.get("confirmar_novo_animal", False) or confirmar_novo_animal
 
+        payload.pop("confirmar_novo_animal", None)
+        payload.pop("confirmar_nova_amostra", None)
         payload = self._normalizar_chaves(payload)
+
+        # A chave primária (id/_id) é gerada automaticamente pelo banco/repositório:
+        # nunca é aceita na entrada do usuário.
+        for chave in _CAMPOS_PROIBIDOS_ENTRADA:
+            payload.pop(chave, None)
 
         amostra_id = payload.get("amostra_id")
         if eh_nao_informado(amostra_id):
-            raise ValueError("O identificador único da amostra (amostra_id ou _id) é obrigatório.")
+            raise ValueError("O identificador de laboratório da amostra (amostra_id) é obrigatório.")
         amostra_id_str = str(amostra_id).strip()
         payload["amostra_id"] = amostra_id_str
 
@@ -358,16 +389,7 @@ class AmostraService:
         payload["animal_id"] = animal_id_str
 
         # Validação referencial do animal vinculado
-        if self.animal_service and hasattr(self.animal_service, "obter_animal"):
-            try:
-                self.animal_service.obter_animal(animal_id_str)
-            except KeyError:
-                if not conf_animal:
-                    raise ValueError(
-                        f"Animal com ID '{animal_id_str}' não encontrado no acervo do laboratório. "
-                        "Para cadastrar a amostra vinculada a um animal novo ainda não registrado, "
-                        "confirme através da opção 'confirmar_novo_animal'."
-                    )
+        self._verificar_animal_vinculado(animal_id_str, conf_animal)
 
         self.aplicar_obrigatoriedade(payload)
 
@@ -464,7 +486,6 @@ class AmostraService:
         self,
         amostra_id: str,
         dados_atualizacao: Union[Dict[str, Any], AmostraUpdate],
-        confirmar_atualizacao_amostra: bool = False,
         confirmar_novo_animal: bool = False,
         usuario: Optional[Any] = None,
     ) -> Amostra:
@@ -474,29 +495,22 @@ class AmostraService:
 
         if isinstance(dados_atualizacao, AmostraUpdate):
             novos = dados_atualizacao.model_dump(by_alias=True, exclude_unset=True)
-            conf_animal = dados_atualizacao.confirmar_atualizacao_amostra or confirmar_novo_animal
+            conf_animal = dados_atualizacao.confirmar_novo_animal or confirmar_novo_animal
         else:
             novos = {k: v for k, v in dados_atualizacao.items() if v is not None}
-            conf_animal = novos.pop("confirmar_novo_animal", False) or confirmar_novo_animal
+            conf_animal = novos.get("confirmar_novo_animal", False) or confirmar_novo_animal
 
         novos = self._normalizar_chaves(novos)
-        for chave in ("amostra_id", "id", "confirmar_atualizacao_amostra", "confirmar_novo_animal"):
+        for chave in ("amostra_id", *_CAMPOS_PROIBIDOS_ENTRADA, "confirmar_novo_animal", "confirmar_atualizacao_amostra"):
             novos.pop(chave, None)
+        novos = {k: v for k, v in novos.items() if v is not None}
 
         payload = self._normalizar_chaves(amostra_atual.model_dump(by_alias=True))
 
         novo_animal_id = novos.get("animal_id")
         if novo_animal_id and str(novo_animal_id).strip() != amostra_atual.animal_id:
             novo_animal_str = str(novo_animal_id).strip()
-            if self.animal_service and hasattr(self.animal_service, "obter_animal"):
-                try:
-                    self.animal_service.obter_animal(novo_animal_str)
-                except KeyError:
-                    if not conf_animal:
-                        raise ValueError(
-                            f"Animal com ID '{novo_animal_str}' não encontrado no acervo do laboratório. "
-                            "Confirme a vinculação através de 'confirmar_novo_animal'."
-                        )
+            self._verificar_animal_vinculado(novo_animal_str, conf_animal)
             novos["animal_id"] = novo_animal_str
 
         enviados = [c for c in novos if c in _CAMPOS_OBRIGATORIOS_AMOSTRA]

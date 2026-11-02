@@ -30,20 +30,19 @@ router = criar_router(prefix="/amostra", tags=["Amostra"])
     status_code=status.HTTP_201_CREATED,
     responses=RESPOSTAS_CRIAR,
     summary="Cadastrar uma nova amostra biológica",
-    description="Cadastra uma nova amostra no acervo, validando o identificador único e o animal de origem vinculado.",
+    description=(
+        "Cadastra uma nova amostra no acervo, validando o identificador único e o animal de origem vinculado. "
+        "A chave primária (_id) é gerada automaticamente pelo banco e não deve ser informada."
+    ),
 )
 def criar_amostra(
     amostra_input: AmostraCreate,
-    confirmar_nova_amostra: bool = Query(
-        False, description="Confirmação explícita de cadastro de nova amostra"
-    ),
     confirmar_novo_animal: bool = Query(
         False, description="Confirma vínculo a animal ainda não cadastrado no catálogo"
     ),
 ):
     return amostra_service.criar_amostra(
         dados_amostra=amostra_input,
-        confirmar_nova_amostra=confirmar_nova_amostra,
         confirmar_novo_animal=confirmar_novo_animal,
     )
 
@@ -88,7 +87,6 @@ def listar_amostras(
 def contar_amostras():
     return {"total": amostra_service.contar_amostras()}
 
-
 @router.get(
     "/animal/{animal_id}",
     response_model=List[Amostra],
@@ -123,19 +121,29 @@ def obter_amostra(amostra_id: str):
 def obter_amostra_detalhes(amostra_id: str):
     return amostra_service.obter_amostra_detalhes(amostra_id)
 
-@router.patch(
+@router.put(
     "/{amostra_id}",
     response_model=Amostra,
     responses=RESPOSTAS_ATUALIZAR,
     summary="Atualizar amostra",
-    description="Atualiza os dados de uma amostra existente, mantendo integridade com o animal de origem e re-normalizando matriz biológica.",
+    description=(
+        "Atualiza os dados de uma amostra existente, permitindo a alteração de apenas um campo ou mais e deixando o restante inalterado. "
+        "A amostra é identificada pelo amostra_id da rota; a chave primária (_id) é imutável."
+    ),
+)
+@router.patch(
+    "/{amostra_id}",
+    response_model=Amostra,
+    responses=RESPOSTAS_ATUALIZAR,
+    summary="Atualizar amostra (parcial)",
+    description=(
+        "Atualiza parcialmente os dados de uma amostra existente, permitindo alterar apenas os campos desejados e deixando o restante inalterado. "
+        "A amostra é identificada pelo amostra_id da rota; a chave primária (_id) é imutável."
+    ),
 )
 def atualizar_amostra(
     amostra_id: str,
     amostra_update: AmostraUpdate,
-    confirmar_atualizacao_amostra: bool = Query(
-        False, description="Confirmação explícita de atualização da amostra"
-    ),
     confirmar_novo_animal: bool = Query(
         False, description="Confirma alteração para animal ainda não cadastrado"
     ),
@@ -143,7 +151,6 @@ def atualizar_amostra(
     return amostra_service.atualizar_amostra(
         amostra_id=amostra_id,
         dados_atualizacao=amostra_update,
-        confirmar_atualizacao_amostra=confirmar_atualizacao_amostra,
         confirmar_novo_animal=confirmar_novo_animal,
     )
 

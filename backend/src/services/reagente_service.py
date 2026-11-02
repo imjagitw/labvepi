@@ -12,6 +12,7 @@ from src.models.Reagente import (
 )
 from src.models.EstoqueReagente import EstoqueReagente
 from src.repositories.reagente_repository import ReagenteRepository, reagente_repository
+from src.utils.repositorio import _CAMPOS_PROIBIDOS_ENTRADA
 from src.utils.normalizacao import (
     eh_nao_informado,
     normalizar_data,
@@ -224,7 +225,7 @@ class ReagenteService:
         # Validação numérica de quantidades
         if "quantidade_unidade" in payload and payload["quantidade_unidade"] is not None:
             payload["quantidade_unidade"] = normalizar_quantidade_unidade(payload["quantidade_unidade"])
-        else:
+        elif campos is None:
             payload["quantidade_unidade"] = 1
 
         if "quantidade_volume" in payload and payload["quantidade_volume"] is not None:
@@ -233,7 +234,7 @@ class ReagenteService:
         # Normalizações de Enums
         if "unidade_medida" in payload and payload["unidade_medida"] is not None:
             payload["unidade_medida"] = self.normalizar_unidade_medida(payload["unidade_medida"])
-        else:
+        elif campos is None:
             payload["unidade_medida"] = UnidadeMedida.ML
 
         if "reagente_etapa" in payload and payload["reagente_etapa"] is not None:
@@ -309,7 +310,14 @@ class ReagenteService:
             payload = dict(dados_reagente)
             conf_reagente = payload.pop("confirmar_novo_reagente", False) or confirmar_novo_reagente
 
+        # A chave primária (id/_id) é gerada automaticamente pelo banco/repositório:
+        # nunca é aceita na entrada do usuário.
+        for chave in _CAMPOS_PROIBIDOS_ENTRADA:
+            payload.pop(chave, None)
+
         payload = self._normalizar_chaves(payload)
+        for chave in (*_CAMPOS_PROIBIDOS_ENTRADA, "confirmar_novo_reagente"):
+            payload.pop(chave, None)
 
         # Checagem de unicidade do reagente_id se informado explicitamente
         rid = payload.get("reagente_id")
@@ -436,9 +444,13 @@ class ReagenteService:
         else:
             novos = {k: v for k, v in dados_atualizacao.items() if v is not None}
 
-        novos = self._normalizar_chaves(novos)
-        for chave in ("id", "confirmar_atualizacao_reagente", "confirmar_novo_reagente"):
+        for chave in _CAMPOS_PROIBIDOS_ENTRADA:
             novos.pop(chave, None)
+
+        novos = self._normalizar_chaves(novos)
+        for chave in (*_CAMPOS_PROIBIDOS_ENTRADA, "confirmar_atualizacao_reagente", "confirmar_novo_reagente"):
+            novos.pop(chave, None)
+        novos = {k: v for k, v in novos.items() if v is not None}
 
         payload = self._normalizar_chaves(reagente_atual.model_dump(by_alias=True))
 

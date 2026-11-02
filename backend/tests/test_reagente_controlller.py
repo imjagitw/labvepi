@@ -2,10 +2,16 @@ import unittest
 from fastapi.testclient import TestClient
 from src.main import app
 
-
 class TestReagenteEEstoqueControllers(unittest.TestCase):
     def setUp(self):
         self.client = TestClient(app)
+        # Limpa lote e estoque de teste remanescentes
+        res_lote = self.client.get("/reagente/lote/LOTE_TAQ_2026")
+        if res_lote.status_code == 200 and isinstance(res_lote.json(), list):
+            for item in res_lote.json():
+                item_id = item.get("id") or item.get("_id")
+                if item_id:
+                    self.client.delete(f"/reagente/{item_id}")
 
     def test_fluxo_completo_reagente_e_estoque(self):
         # 1. Contagem inicial
@@ -17,8 +23,10 @@ class TestReagenteEEstoqueControllers(unittest.TestCase):
         self.assertEqual(res_count_e.status_code, 200)
         self.assertIn("total", res_count_e.json())
 
-        # 2. Criar lote de reagente via POST /reagente/
+        # 2. Criar lote de reagente via POST /reagente/ (tentando enviar id/_id que deve ser ignorado)
         payload_lote = {
+            "id": 999999,
+            "_id": "FAKE_PK",
             "reagente_codigo": "REAG_TEST_01",
             "reagente_nome": "Taq DNA Polimerase",
             "numero_lote": "LOTE_TAQ_2026",
@@ -35,6 +43,8 @@ class TestReagenteEEstoqueControllers(unittest.TestCase):
         data_criada = res_post.json()
         reagente_id = data_criada["reagente_id"]
         id_num = data_criada.get("id") or data_criada.get("_id")
+        self.assertNotEqual(id_num, 999999)
+        self.assertNotEqual(reagente_id, "FAKE_PK")
 
         # 3. Consultar Reagente por identificador e detalhes
         res_get = self.client.get(f"/reagente/{reagente_id}")

@@ -34,6 +34,9 @@ _ALIASES_ANIMAL = {
     "observacoes": "animal_observacoes",
 }
 
+# Chave primária autoincrementada: gerada exclusivamente pelo banco/repositório
+_CAMPOS_PROIBIDOS_ENTRADA = ("id", "_id")
+
 _ROTULOS_CAMPOS = {
     "sexo": "sexo",
     "orgao_origem": "órgão de origem (orgao)",
@@ -252,9 +255,14 @@ class AnimalService:
 
         payload = self._normalizar_chaves(payload)
 
+        # A chave primária (id/_id) é gerada automaticamente pelo banco/repositório:
+        # nunca é aceita na entrada do usuário.
+        for chave in (*_CAMPOS_PROIBIDOS_ENTRADA, "confirmar_novo_animal", "confirmar_nova_especie"):
+            payload.pop(chave, None)
+
         animal_id = payload.get("animal_id")
         if eh_nao_informado(animal_id):
-            raise ValueError("O identificador único do animal (animal_id ou _id) é obrigatório.")
+            raise ValueError("O identificador de laboratório do animal (animal_id) é obrigatório.")
 
         animal_id_str = str(animal_id).strip()
         payload["animal_id"] = animal_id_str
@@ -472,8 +480,9 @@ class AnimalService:
             confirmar = dados_novos.pop("confirmar_nova_especie", False) or confirmar_nova_especie
 
         dados_novos = self._normalizar_chaves(dados_novos)
-        for chave in ("animal_id", "id", "confirmar_atualizacao_animal", "confirmar_nova_especie"):
+        for chave in ("animal_id", *_CAMPOS_PROIBIDOS_ENTRADA, "confirmar_atualizacao_animal", "confirmar_nova_especie"):
             dados_novos.pop(chave, None)
+        dados_novos = {k: v for k, v in dados_novos.items() if v is not None}
 
         payload = self._normalizar_chaves(animal_atual.model_dump(by_alias=True))
 

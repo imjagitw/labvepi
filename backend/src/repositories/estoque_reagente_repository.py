@@ -1,12 +1,12 @@
 import re
 from typing import Optional, List, Dict, Union, Any
 from src.models.EstoqueReagente import EstoqueReagente
-
-def _normalizar(texto: Optional[str]) -> str:
-    """Normaliza para chave indexada interna de busca em memória."""
-    if not texto:
-        return ""
-    return " ".join(texto.strip().split()).casefold()
+from src.utils.repositorio import (
+    _normalizar,
+    gerar_proximo_id_mongo,
+    doc_para_mongo,
+    preparar_doc_mongo,
+)
 
 class EstoqueReagenteRepository:
     """
@@ -52,23 +52,24 @@ class EstoqueReagenteRepository:
                 self._collection = get_db()[self.COLLECTION_NAME]
                 return self._collection
             except Exception:
+                self._use_mongo = False
                 return None
         return None
 
     def _do_mongo(self, doc: dict) -> EstoqueReagente:
-        d = dict(doc)
+        d = preparar_doc_mongo(doc)
         if "_id" in d and not isinstance(d["_id"], int):
-            if isinstance(d["_id"], str) and d["_id"].isdigit():
-                d["_id"] = int(d["_id"])
-            else:
-                d["_id"] = None
+            d["_id"] = None
         return EstoqueReagente(**d)
 
     def _para_mongo(self, estoque: EstoqueReagente) -> dict:
-        doc = estoque.model_dump(mode="json", by_alias=True, exclude_none=True)
-        if "_id" not in doc and estoque.id is not None:
-            doc["_id"] = int(estoque.id) if str(estoque.id).isdigit() else estoque.id
-        return doc
+        return doc_para_mongo(estoque)
+
+    def _gerar_proximo_id(self) -> int:
+        """Gera a próxima chave primária autoincrementada (max(_id) + 1)."""
+        proximo = gerar_proximo_id_mongo(self.collection, self._proximo_id)
+        self._proximo_id = proximo + 1
+        return proximo
 
     def _carregar_do_banco(self) -> None:
         if self.collection is None:
@@ -132,25 +133,9 @@ class EstoqueReagenteRepository:
         ):
             raise ValueError(f"Estoque para o reagente '{estoque.reagente_nome}' já está cadastrado.")
 
-        if estoque.id is None:
-            if self.collection is not None:
-                try:
-                    doc_max = self.collection.find_one({"_id": {"$type": "number"}}, sort=[("_id", -1)])
-                    max_id = int(doc_max["_id"]) if doc_max and isinstance(doc_max.get("_id"), (int, float)) else 0
-                    estoque.id = max(max_id + 1, self._proximo_id)
-                except Exception:
-                    estoque.id = self._proximo_id
-            else:
-                estoque.id = self._proximo_id
-            self._proximo_id = estoque.id + 1
-        else:
-            chave_id = int(estoque.id)
-            if chave_id in self._por_id or (
-                self.collection is not None and self.collection.count_documents({"_id": chave_id}) > 0
-            ):
-                raise ValueError(f"Estoque com ID {chave_id} já existe no banco de dados.")
-            if chave_id >= self._proximo_id:
-                self._proximo_id = chave_id + 1
+        # A chave primária (id/_id) é SEMPRE gerada pela camada de persistência;
+        # qualquer valor pré-existente no objeto é descartado.
+        estoque.id = self._gerar_proximo_id()
 
         if self.collection is not None:
             doc = self._para_mongo(estoque)
@@ -180,15 +165,8 @@ class EstoqueReagenteRepository:
 
         self._desindexar(antigo)
 
-        # Preserva ID numérico consistente
-        if estoque_atualizado.id is None:
-            estoque_atualizado.id = antigo.id
-        elif int(estoque_atualizado.id) != int(antigo.id):
-            chave_nova = int(estoque_atualizado.id)
-            if chave_nova in self._por_id:
-                raise ValueError(f"Já existe outro estoque com ID {chave_nova}.")
-            if chave_nova >= self._proximo_id:
-                self._proximo_id = chave_nova + 1
+        # A chave primária é imutável: sempre preserva o id já persistido.
+        estoque_atualizado.id = antigo.id
 
         # Valida se o novo nome colide com outro registro
         chave_nome_nova = _normalizar(estoque_atualizado.reagente_nome)

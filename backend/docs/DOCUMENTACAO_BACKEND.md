@@ -220,8 +220,8 @@ Todos os modelos utilizam `ConfigDict(populate_by_name=True)`, permitindo instan
 ### 4.3. Módulo de Animal (`Animal`, DTOs e Enums de Domínio)
 - **Modelos e DTOs** em `src/models/Animal/`:
   - `Animal`: Entidade central contendo `animal_id` (alias `_id`), `classe`, `nome_comum`, `nome_cientifico`, `sexo`, `peso`, `faixa_etaria`, `orgao_origem`, `local_origem`, `regime_vida`, `status_vital`, além dos opcionais `animal_id_projeto`, `microchip`, `funcao`, `idade`, `suspeita_clinica` e `animal_observacoes`.
-  - `AnimalCreate`: DTO estrito para novos cadastros (com flags de confirmação `confirmar_novo_animal` e `confirmar_nova_especie`).
-  - `AnimalUpdate`: DTO para atualização parcial de dados cadastrais.
+  - `AnimalCreate`: DTO estrito para novos cadastros (com flag de confirmação de regra de negócio `confirmar_nova_especie`).
+  - `AnimalUpdate`: DTO para atualização parcial de dados cadastrais (com flag de confirmação de regra de negócio `confirmar_nova_especie`).
   - `AnimalDetails`: Schema enriquecido que substitui campos nulos por `"Não informado"`, aninha o modelo `Especie` e agrega `quantidade_amostras` e a lista `amostras: List[Amostra]`.
 - **Enums de Domínio**:
   - `Sexo`: `Macho`, `Fêmea`, `Indeterminado`, `Não informado`.
@@ -234,8 +234,8 @@ Todos os modelos utilizam `ConfigDict(populate_by_name=True)`, permitindo instan
 ### 4.4. Módulo de Amostra Biológica (`Amostra`, DTOs e Enums)
 - **Modelos e DTOs** em `src/models/Amostra/`:
   - `Amostra`: `amostra_id`, `animal_id`, `data_coleta_amostra`, `data_entrega`, `material_biologico`, `status_amostra`, `laudo_liberado`, `local_coleta_amostra`, `nome_coletor`, `condicao_armazenamento`, `fase_amostra`, `destino_amostra`, `kit_utilizado`, `caixa_armazenamento`, frações disponíveis (`dna_disponivel`, `rna_disponivel`, `sequenciamento_disponivel`), latitude, longitude e observações.
-  - `AmostraCreate`: DTO estrito de criação com flags `confirmar_nova_amostra` e `confirmar_novo_animal`.
-  - `AmostraUpdate`: DTO de atualização parcial com flag `confirmar_atualizacao_amostra`.
+  - `AmostraCreate`: DTO estrito de criação com flag de regra de negócio `confirmar_novo_animal` (confirmação genérica de interface pertence ao frontend).
+  - `AmostraUpdate`: DTO de atualização parcial com flag de regra de negócio `confirmar_novo_animal`.
   - `AmostraDetails`: Schema com objeto `Animal` agregado e lista/contagem de exames laboratoriais.
 - **Enums de Domínio**:
   - `MaterialBiologico`: 29 matrizes biológicas normalizadas (Swabs, Sangue, Órgãos, Tecidos, Fezes, etc.).
@@ -450,6 +450,7 @@ Os repositórios (`backend/src/repositories/`) implementam o padrão DAO (*Data 
 | **`ExameRepository`** | `exames` | [exame_repository.py](file:///home/gio/Documents/UNIVERSIDADE/Pesquisa/PIBIT%202026-2027/pibitapp/backend/src/repositories/exame_repository.py) | `exame_id` (str), `_id` (int), `amostra_id`, `tipo_exame`, `resultado`, `teste_laboratorial`, `responsavel_exame` | `create`, `save`, `update`, `delete`, `buscar_por_id`, `buscar_por_exame_id`, `buscar_por_amostra_id`, `listar`, `count`, `exists`, `clear` |
 | **`ReagenteRepository`** | `reagentes` | [reagente_repository.py](file:///home/gio/Documents/UNIVERSIDADE/Pesquisa/PIBIT%202026-2027/pibitapp/backend/src/repositories/reagente_repository.py) | `reagente_id` (str), `_id` (int), `reagente_codigo`, `reagente_nome`, `numero_lote`, `marca`, `local_armazenamento` | `create`, `save`, `update`, `delete`, `buscar_por_id`, `buscar_por_codigo`, `buscar_por_nome`, `buscar_por_lote`, `listar`, `count`, `exists`, `clear` |
 | **`EstoqueReagenteRepository`** | `estoque_reagentes` | [estoque_reagente_repository.py](file:///home/gio/Documents/UNIVERSIDADE/Pesquisa/PIBIT%202026-2027/pibitapp/backend/src/repositories/estoque_reagente_repository.py) | `_id` (int), `reagente_nome` (str), `reagente_codigo` | `create`, `save`, `update`, `delete`, `buscar_por_id`, `buscar_por_nome`, `buscar_por_codigo`, `listar`, `count`, `exists`, `clear` |
+| **`UsuarioRepository`** | `usuarios` | [usuario_repository.py](file:///home/gio/Documents/UNIVERSIDADE/Pesquisa/PIBIT%202026-2027/pibitapp/backend/src/repositories/usuario_repository.py) | `_id` (int), `username` (str), `email` (str), `matricula` (str), `perfil`, `status` | `create`, `save`, `update`, `delete`, `buscar_por_id`, `buscar_por_username`, `buscar_por_email`, `buscar_por_matricula`, `buscar_por_perfil`, `buscar_por_status`, `listar_pendentes`, `listar`, `count`, `exists`, `clear` |
 
 ---
 
@@ -516,7 +517,7 @@ Os controladores **não acessam repositórios nem modelos de persistência diret
 - `POST /especie/importar-catalogo`: Importação em lote de tabela CSV para o catálogo de espécies (Status 200 / 400 / 404; `responses=RESPOSTAS_PROCESSAMENTO`).
 
 ### 9.4. Endpoints de Amostras (`/amostra`)
-- `POST /amostra/`: Cadastro de nova amostra biológica com validação de animal vinculado (`confirmar_nova_amostra`, `confirmar_novo_animal`) (Status 201 Created; `responses=RESPOSTAS_CRIAR`).
+- `POST /amostra/`: Cadastro de nova amostra biológica com validação de animal vinculado (`confirmar_novo_animal`) (Status 201 Created; `responses=RESPOSTAS_CRIAR`).
 - `GET /amostra/`: Listagem com filtros múltiplos (`animal_id`, `status_amostra`, `fase_amostra`, `condicao_armazenamento`, `destino_amostra`, `material_biologico`), busca textual e paginação (Status 200; `responses=RESPOSTAS_LISTAR`).
 - `GET /amostra/contagem`: Quantidade total de amostras no acervo (Status 200; `responses=RESPOSTAS_CONTAGEM`).
 - `GET /amostra/animal/{animal_id}`: Todas as amostras colhidas de um determinado animal (Status 200; `responses=RESPOSTAS_LISTAR`).
@@ -557,40 +558,65 @@ Os controladores **não acessam repositórios nem modelos de persistência diret
 - `PUT /estoque_reagente/{identificador}`: Atualizar metadados agregados do estoque (Status 200 / 400 / 404; `responses=RESPOSTAS_ATUALIZAR`).
 - `DELETE /estoque_reagente/{identificador}`: Remover registro de estoque com opção de deleção em cascata dos lotes físicos (`deletar_lotes_vinculados: bool`) (Status 204 No Content; `responses=RESPOSTAS_DELETAR`).
 
+### 9.8. Endpoints de Usuários e Gestão de Contas (`/usuario`)
+- `POST /usuario/`: Cadastrar novo usuário com validação de unicidade, hashing Bcrypt de senha e status default `Pendente` (Status 201 Created; `responses=RESPOSTAS_CRIAR`).
+- `POST /usuario/solicitar-cadastro`: Solicitação pública de cadastro com status inicial `Pendente` aguardando homologação por docente ou administrador (Status 201 Created; `responses=RESPOSTAS_CRIAR`).
+- `GET /usuario/`: Listar usuários com filtros combinados por `perfil`, `status` (`Ativo`, `Pendente`, `Inativo`, `Bloqueado`), busca textual (`termo_busca`) e paginação (`skip`, `limit`) (Status 200; `responses=RESPOSTAS_LISTAR`).
+- `GET /usuario/pendentes`: Listar solicitações de cadastro com status `Pendente` para avaliação administrativa (Status 200; `responses=RESPOSTAS_LISTAR`).
+- `GET /usuario/{identificador}`: Buscar usuário por ID numérico ou username (Status 200 / 404; `responses=RESPOSTAS_OBTER`).
+- `GET /usuario/{identificador}/detalhes`: Consulta detalhada `UsuarioDetails` com saneamento explícito de campos e exclusão estrita de senhas (Status 200 / 404; `responses=RESPOSTAS_OBTER`).
+- `PUT /usuario/{identificador}` e `PATCH /usuario/{identificador}`: Atualização parcial de dados cadastrais (Status 200 / 400 / 404; `responses=RESPOSTAS_ATUALIZAR`).
+- `PATCH /usuario/{identificador}/aprovar`: Aprovação e ativação imediata da conta (`status = Ativo`), liberando o login no sistema (Status 200 / 404; `responses=RESPOSTAS_ATUALIZAR`).
+- `PATCH /usuario/{identificador}/inativar`: Inativação da conta do usuário (`status = Inativo`) (Status 200 / 404; `responses=RESPOSTAS_ATUALIZAR`).
+- `PATCH /usuario/{identificador}/status`: Alteração formal de status da conta via schema `UsuarioStatusUpdate` (Status 200 / 400 / 404; `responses=RESPOSTAS_ATUALIZAR`).
+- `PATCH /usuario/{identificador}/perfil`: Atualização semântica do perfil institucional via `UsuarioPerfilUpdate` (Status 200 / 400 / 404; `RESPIRAS_ATUALIZAR`).
+- `POST /usuario/{identificador}/trocar-senha`: Troca autenticada de senha via `UsuarioTrocaSenha`, exigindo e validando a senha atual antes de persistir o novo hash Bcrypt (Status 200 / 400 / 403 / 404; `responses=RESPOSTAS_ATUALIZAR`).
+- `POST /usuario/login`: Validação de credenciais e status da conta (bloqueia contas pendentes ou inativas com 403 Forbidden) com atualização atômica do `last_login` (Status 200 / 400 / 403; `responses=RESPOSTAS_OBTER`).
+- `DELETE /usuario/{identificador}`: Exclusão de usuário cadastrado (Status 204 No Content; `responses=RESPOSTAS_DELETAR`).
+
 ---
 
 ## 10. Suíte de Testes Automatizados (`tests/`)
 
-O backend conta com **85 testes automatizados** cobrindo todas as camadas arquiteturais:
+O backend conta com **suíte completa de testes automatizados** cobrindo todas as camadas arquiteturais:
 
-1. **Testes de Animais ([test_animal_service.py](file:///home/gio/Documents/UNIVERSIDADE/Pesquisa/PIBIT%202026-2027/pibitapp/backend/tests/test_animal_service.py))**:
+1. **Testes de Usuários ([test_usuario_service.py](file:///home/gio/Documents/UNIVERSIDADE/Pesquisa/PIBIT%202026-2027/pibitapp/backend/tests/test_usuario_service.py))**:
+   - Criação com aliases e normalização de termos legados de perfil;
+   - Validações de unicidade (username e email) e restrições de senha;
+   - Solicitação pública de cadastro com status inicial `Pendente` e listagem de pendências;
+   - Fluxo de aprovação e ativação da conta liberando a autenticação;
+   - Bloqueio estrito de login para contas pendentes, inativas ou bloqueadas com mensagem semântica (403 Forbidden);
+   - Atualização direcionada de perfil de acesso institucional;
+   - Troca de senha autenticada com conferência da senha atual, requisitos de comprimento, confirmação e impedimento de reuso da mesma senha;
+   - Projeção segura `UsuarioDetails` sem exposição de credenciais sensíveis e exclusão de contas.
+2. **Testes de Animais ([test_animal_service.py](file:///home/gio/Documents/UNIVERSIDADE/Pesquisa/PIBIT%202026-2027/pibitapp/backend/tests/test_animal_service.py))**:
    - Resolução taxonômica pelo catálogo;
    - Processamento de unidades de peso (gramas para kg, vírgulas, `Não aferido`, rejeição de peso zero ou negativo);
    - Dedução de faixas etárias por critérios biológicos;
    - Bloqueio de IDs duplicados e CRUD completo em memória.
-2. **Testes de Espécies ([test_especie_service.py](file:///home/gio/Documents/UNIVERSIDADE/Pesquisa/PIBIT%202026-2027/pibitapp/backend/tests/test_especie_service.py))**:
+3. **Testes de Espécies ([test_especie_service.py](file:///home/gio/Documents/UNIVERSIDADE/Pesquisa/PIBIT%202026-2027/pibitapp/backend/tests/test_especie_service.py))**:
    - Normalização de classes e formatação binomial;
    - Resolução cruzada e detecção de incoerências taxonômicas;
    - Ingestão de catálogo CSV via delegação para o ETL.
-3. **Testes de Amostras ([test_amostra_service.py](file:///home/gio/Documents/UNIVERSIDADE/Pesquisa/PIBIT%202026-2027/pibitapp/backend/tests/test_amostra_service.py))**:
+4. **Testes de Amostras ([test_amostra_service.py](file:///home/gio/Documents/UNIVERSIDADE/Pesquisa/PIBIT%202026-2027/pibitapp/backend/tests/test_amostra_service.py))**:
    - Normalização de matriz biológica por especificidade decrescente;
    - Validação referencial com o animal de origem e flag `confirmar_novo_animal`;
    - Geração de schema `AmostraDetails`.
-4. **Testes do Extrator Base ([test_etl_base.py](file:///home/gio/Documents/UNIVERSIDADE/Pesquisa/PIBIT%202026-2027/pibitapp/backend/tests/test_etl_base.py))**:
+5. **Testes do Extrator Base ([test_etl_base.py](file:///home/gio/Documents/UNIVERSIDADE/Pesquisa/PIBIT%202026-2027/pibitapp/backend/tests/test_etl_base.py))**:
    - Validação das estruturas `ProblemaLinha`, `Resultado` e métodos de auditoria.
-5. **Testes do Extrator de Morcegos ([test_etl_morcegos.py](file:///home/gio/Documents/UNIVERSIDADE/Pesquisa/PIBIT%202026-2027/pibitapp/backend/tests/test_etl_morcegos.py))**:
+6. **Testes do Extrator de Morcegos ([test_etl_morcegos.py](file:///home/gio/Documents/UNIVERSIDADE/Pesquisa/PIBIT%202026-2027/pibitapp/backend/tests/test_etl_morcegos.py))**:
    - Parsing de dados brutos de campo, matrizes múltiplas de tecidos e exames virais.
-6. **Testes do Carregador ETL ([test_etl_carregar.py](file:///home/gio/Documents/UNIVERSIDADE/Pesquisa/PIBIT%202026-2027/pibitapp/backend/tests/test_etl_carregar.py))**:
+7. **Testes do Carregador ETL ([test_etl_carregar.py](file:///home/gio/Documents/UNIVERSIDADE/Pesquisa/PIBIT%202026-2027/pibitapp/backend/tests/test_etl_carregar.py))**:
    - Validação canônica de documentos Pydantic v2;
    - Detecção e descarte de vínculos órfãos;
    - Simulação de upsert idempotente no MongoDB com trava de segurança em `pibit_app_dev`.
-7. **Testes de Correções de Modelos ([test_model_corrections.py](file:///home/gio/Documents/UNIVERSIDADE/Pesquisa/PIBIT%202026-2027/pibitapp/backend/tests/test_model_corrections.py))**:
+8. **Testes de Correções de Modelos ([test_model_corrections.py](file:///home/gio/Documents/UNIVERSIDADE/Pesquisa/PIBIT%202026-2027/pibitapp/backend/tests/test_model_corrections.py))**:
    - Verificação de schemas, aliases e serialização limpa de entidades.
-8. **Testes de Normalização ([test_utils_normalizacao.py](file:///home/gio/Documents/UNIVERSIDADE/Pesquisa/PIBIT%202026-2027/pibitapp/backend/tests/test_utils_normalizacao.py))**:
+9. **Testes de Normalização ([test_utils_normalizacao.py](file:///home/gio/Documents/UNIVERSIDADE/Pesquisa/PIBIT%202026-2027/pibitapp/backend/tests/test_utils_normalizacao.py))**:
    - Validação unitária de todas as funções do pacote modular `src.utils.normalizacao` (datas, coordenadas DMS, pesos, faixas etárias, matrizes e conversões de reagentes).
-9. **Testes de Reagentes e Estoque ([test_reagente_controlller.py](file:///home/gio/Documents/UNIVERSIDADE/Pesquisa/PIBIT%202026-2027/pibitapp/backend/tests/test_reagente_controlller.py))**:
-   - Teste de integração HTTP ponta a ponta com `TestClient(app)` para os controllers `/reagente` e `/estoque_reagente`, validando cadastro de lotes, cálculo automático de validade, consolidação de estoque e sincronização em tempo real.
-10. **Testes de Respostas Padronizadas e Centralização de Erros ([test_controllers_centralized_responses.py](file:///home/gio/Documents/UNIVERSIDADE/Pesquisa/PIBIT%202026-2027/pibitapp/backend/tests/test_controllers_centralized_responses.py))**:
+10. **Testes de Reagentes e Estoque ([test_reagente_controlller.py](file:///home/gio/Documents/UNIVERSIDADE/Pesquisa/PIBIT%202026-2027/pibitapp/backend/tests/test_reagente_controlller.py))**:
+    - Teste de integração HTTP ponta a ponta com `TestClient(app)` para os controllers `/reagente` e `/estoque_reagente`, validando cadastro de lotes, cálculo automático de validade, consolidação de estoque e sincronização em tempo real.
+11. **Testes de Respostas Padronizadas e Centralização de Erros ([test_controllers_centralized_responses.py](file:///home/gio/Documents/UNIVERSIDADE/Pesquisa/PIBIT%202026-2027/pibitapp/backend/tests/test_controllers_centralized_responses.py))**:
     - Validação de que todas as rotas configuradas com `criar_router` e `responses` interceptam automaticamente `KeyError` (404), `FileNotFoundError` (404), `ValueError` (400), `PermissionError` (403) e `NoContentError` (204), cobrindo o fluxo CRUD completo dos controllers sem blocos try/except redundantes.
 
 ---

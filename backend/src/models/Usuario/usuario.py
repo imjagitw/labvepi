@@ -1,8 +1,8 @@
-from enum import Enum
 from datetime import datetime
 from typing import Optional, Union
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 from src.models.Usuario.enums.Perfil import Perfil
+from src.models.Usuario.enums.StatusUsuario import StatusUsuario
 
 class Usuario(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
@@ -16,6 +16,7 @@ class Usuario(BaseModel):
     last_login: Optional[datetime] = Field(default=None, description="Data e hora do último acesso")
     perfil: Perfil
     matricula: Optional[str] = Field(default=None, description="Matrícula institucional padronizada como texto")
+    status: StatusUsuario = Field(default=StatusUsuario.PENDENTE, description="Status do usuário (ativo, inativo, pendente, bloqueado)")
 
     # =========================================================================
     # AÇÕES / VALIDAÇÕES / SERVICES RETIRADOS DESTE MODEL:

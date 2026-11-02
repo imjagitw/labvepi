@@ -356,12 +356,80 @@ class TestUtilsNormalizacao(unittest.TestCase):
         self.assertEqual(totais_base["ml"], 2.0)
         self.assertIn("ml", resumo)
 
+    def test_usuario_normalizacao(self):
+        from src.utils.normalizacao.usuario import (
+            normalizar_perfil,
+            normalizar_matricula,
+            normalizar_last_login,
+            normalizar_chaves_usuario,
+        )
+        from src.models.Usuario.enums.Perfil import Perfil
+        from datetime import datetime
+
+        # 1. Perfil
+        self.assertEqual(normalizar_perfil(Perfil.DOCENTE), Perfil.DOCENTE)
+        self.assertEqual(normalizar_perfil("docente"), Perfil.DOCENTE)
+        self.assertEqual(normalizar_perfil("DOCENTE"), Perfil.DOCENTE)
+        self.assertEqual(normalizar_perfil("professor"), Perfil.DOCENTE)
+        self.assertEqual(normalizar_perfil("prof"), Perfil.DOCENTE)
+        self.assertEqual(normalizar_perfil("pos-graduando"), Perfil.POS_GRADUANDO)
+        self.assertEqual(normalizar_perfil("pós-graduando"), Perfil.POS_GRADUANDO)
+        self.assertEqual(normalizar_perfil("pós graduação"), Perfil.POS_GRADUANDO)
+        self.assertEqual(normalizar_perfil("mestrando"), Perfil.POS_GRADUANDO)
+        self.assertEqual(normalizar_perfil("doutorado"), Perfil.POS_GRADUANDO)
+        self.assertEqual(normalizar_perfil("bolsista_pibiti"), Perfil.BOLSISTA_PIBITI)
+        self.assertEqual(normalizar_perfil("bolsista pibit"), Perfil.BOLSISTA_PIBITI)
+        self.assertEqual(normalizar_perfil("pibic"), Perfil.BOLSISTA_PIBIC)
+        self.assertEqual(normalizar_perfil("bolsista externo"), Perfil.BOLSISTA_EXTERNO)
+
+        with self.assertRaises(ValueError):
+            normalizar_perfil(None)
+        with self.assertRaises(ValueError):
+            normalizar_perfil("")
+        with self.assertRaises(ValueError):
+            normalizar_perfil("perfil_inexistente")
+
+        # 2. Matrícula
+        self.assertEqual(normalizar_matricula("12345"), "12345")
+        self.assertEqual(normalizar_matricula(" 000999 "), "000999")
+        self.assertIsNone(normalizar_matricula(None))
+        self.assertIsNone(normalizar_matricula(""))
+        self.assertIsNone(normalizar_matricula(" - "))
+        self.assertIsNone(normalizar_matricula("NI"))
+        self.assertIsNone(normalizar_matricula("null"))
+
+        # 3. Last Login
+        agora = datetime.now()
+        self.assertEqual(normalizar_last_login(agora), agora)
+        self.assertEqual(normalizar_last_login("2026-05-10T14:30:00"), datetime(2026, 5, 10, 14, 30))
+        self.assertEqual(normalizar_last_login("10/05/2026 14:30:00"), datetime(2026, 5, 10, 14, 30))
+        self.assertIsNone(normalizar_last_login(None))
+        self.assertIsNone(normalizar_last_login("Nunca"))
+        self.assertIsNone(normalizar_last_login("nunca"))
+        self.assertIsNone(normalizar_last_login("-"))
+        with self.assertRaises(ValueError):
+            normalizar_last_login("data_invalida")
+
+        # 4. Chaves / Aliases
+        payload_bruto = {
+            "usuario": "gio_silva",
+            "nome": "Giovani",
+            "senha": "senha_segura_123",
+            "perfil": "docente",
+        }
+        normalizado = normalizar_chaves_usuario(payload_bruto)
+        self.assertEqual(normalizado["username"], "gio_silva")
+        self.assertEqual(normalizado["name"], "Giovani")
+        self.assertEqual(normalizado["password"], "senha_segura_123")
+        self.assertEqual(normalizado["perfil"], "docente")
+
     def test_import_direto_submodulos(self):
         from src.utils.normalizacao.comum import eh_nao_informado, normalizar_booleano
         from src.utils.normalizacao.local import normalizar_coordenada
         from src.utils.normalizacao.animal import normalizar_peso
         from src.utils.normalizacao.amostra_exame import normalizar_material_biologico
         from src.utils.normalizacao.reagente import normalizar_unidade_medida
+        from src.utils.normalizacao.usuario import normalizar_perfil
 
         self.assertTrue(eh_nao_informado(None))
         self.assertTrue(normalizar_booleano("sim"))
@@ -369,6 +437,7 @@ class TestUtilsNormalizacao(unittest.TestCase):
         self.assertEqual(normalizar_peso("1kg"), 1.0)
         self.assertIsNotNone(normalizar_material_biologico("soro"))
         self.assertIsNotNone(normalizar_unidade_medida("ml"))
+        self.assertIsNotNone(normalizar_perfil("docente"))
 
 
 if __name__ == "__main__":

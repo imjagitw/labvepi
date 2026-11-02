@@ -5,25 +5,27 @@ from src.models.Reagente import EtapaReagente, UnidadeMedida
 
 class ReagenteUpdate(BaseModel):
     """
-    Entidade representativa de um lote físico de reagente no laboratório.
-    Contém apenas atributos e tipagens declarativas, sem ações temporais,
-    resolução dinâmica de sinônimos ou validadores heurísticos.
+    Schema de atualização de um lote físico de reagente no laboratório (DTO de entrada):
+    - O reagente é identificado pelo identificador na rota da requisição (PUT/PATCH /reagente/{identificador}).
+    - A chave primária ('id'/'_id', gerada pelo banco) é imutável e não é aceita no corpo:
+      campos extras são ignorados.
+    - Suporta atualização parcial ou completa.
     """
-    model_config = ConfigDict(populate_by_name=True)
+    model_config = ConfigDict(populate_by_name=True, extra="ignore")
     
-    # Obrigatórios
-    reagente_codigo: str = Field(..., alias="codigo", description="Código do reagente")
-    reagente_nome: str = Field(..., alias="nome", description="Nome do reagente")
-    numero_lote: str = Field(..., description="Número identificador do lote")
-    marca: str = Field(..., description="Marca ou fabricante do reagente")
-    data_validade: date = Field(..., description="Data de validade do lote")
-    quantidade_unidade: int = Field(default=1, alias="quantidade_unidade", description="Quantidade de frascos/unidades")
-    reagente_local_armazenamento: str = Field(..., alias="local_armazenamento", description="Local físico de armazenamento")
+    # Campos de atualização (opcionais para suportar PUT/PATCH parcial)
+    reagente_codigo: Optional[str] = Field(default=None, alias="codigo", description="Código do reagente")
+    reagente_nome: Optional[str] = Field(default=None, alias="nome", description="Nome do reagente")
+    numero_lote: Optional[str] = Field(default=None, description="Número identificador do lote")
+    marca: Optional[str] = Field(default=None, description="Marca ou fabricante do reagente")
+    data_validade: Optional[date] = Field(default=None, description="Data de validade do lote")
+    quantidade_unidade: Optional[int] = Field(default=None, alias="quantidade_unidade", description="Quantidade de frascos/unidades")
+    reagente_local_armazenamento: Optional[str] = Field(default=None, alias="local_armazenamento", description="Local físico de armazenamento")
     
     # Opcionais
     reagente_id: Optional[str] = Field(default=None, description="Identificador único padrão do laboratório")
     quantidade_volume: Optional[float] = Field(default=None, description="Volume ou massa contida em cada unidade")
-    unidade_medida: UnidadeMedida = Field(default="ml", alias="unidade", description="Unidade de medida (ex: ml, L, g)")
+    unidade_medida: Optional[UnidadeMedida] = Field(default=None, alias="unidade", description="Unidade de medida (ex: ml, L, g)")
     reagente_etapa: Optional[EtapaReagente] = Field(default=None, alias="etapa", description="Etapa laboratorial em que é empregado")
     reagente_observacoes: Optional[str] = Field(default=None, alias="observacoes", description="Observações complementares")
 

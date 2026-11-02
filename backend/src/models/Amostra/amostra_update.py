@@ -9,8 +9,10 @@ class AmostraUpdate(BaseModel):
     - Todos os campos são opcionais para suportar atualizações parciais (PATCH/PUT).
     - Preserva compatibilidade de aliases com o banco de dados e formulários.
     - Contém flag de confirmação de atualização.
+    - A amostra é identificada pelo 'amostra_id' da rota; a chave primária
+      ('id'/'_id', gerada pelo banco) é imutável e não é aceita no corpo.
     """
-    model_config = ConfigDict(populate_by_name=True)
+    model_config = ConfigDict(populate_by_name=True, extra="ignore")
 
     # Identificação e vínculos
     animal_id: Optional[str] = Field(
@@ -114,10 +116,10 @@ class AmostraUpdate(BaseModel):
         description="Observações e notas adicionais sobre a amostra"
     )
 
-    # Flags de controle
-    confirmar_atualizacao_amostra: bool = Field(
+    # Confirmação de regra de negócio (a confirmação genérica "deseja salvar?" é do frontend)
+    confirmar_novo_animal: bool = Field(
         default=False,
-        description="Confirmação explícita para atualização da amostra"
+        description="Confirma a vinculação a um animal ainda não cadastrado no acervo (responde ao 409 ANIMAL_NAO_ENCONTRADO)"
     )
 
     # =========================================================================

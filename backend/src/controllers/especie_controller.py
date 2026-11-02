@@ -25,7 +25,7 @@ router = criar_router(prefix="/especie", tags=["Espécie"])
     status_code=status.HTTP_201_CREATED,
     responses=RESPOSTAS_CRIAR,
     summary="Cadastrar espécie",
-    description="Cadastra uma nova espécie taxonômica no catálogo do laboratório.",
+    description="Cadastra uma nova espécie taxonômica no catálogo do laboratório. A chave primária (id) é gerada automaticamente pelo banco de dados.",
 )
 def cadastrar_especie(especie_in: EspecieCreate):
     return especie_service.cadastrar_especie(especie_in)
@@ -67,7 +67,20 @@ def obter_especie_detalhes(id: Union[int, str]):
     response_model=Especie,
     responses=RESPOSTAS_ATUALIZAR,
     summary="Atualizar espécie",
-    description="Atualiza os dados taxonômicos repassando a validação de regras de negócio ao Service.",
+    description=(
+        "Atualiza os dados taxonômicos da espécie identificada pelo {id}, permitindo alterar apenas um campo ou mais e deixando o restante inalterado. "
+        "A chave primária é imutável."
+    ),
+)
+@router.patch(
+    "/{id}",
+    response_model=Especie,
+    responses=RESPOSTAS_ATUALIZAR,
+    summary="Atualizar espécie (parcial)",
+    description=(
+        "Atualiza parcialmente os dados taxonômicos da espécie identificada pelo {id}, permitindo alterar apenas os campos selecionados e deixando o restante inalterado. "
+        "A chave primária é imutável."
+    ),
 )
 def atualizar_especie(id: Union[int, str], especie_in: EspecieUpdate):
     return especie_service.atualizar_especie(id, especie_in)

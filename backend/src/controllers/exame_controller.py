@@ -29,7 +29,10 @@ router = criar_router(prefix="/exame", tags=["Exame"])
     status_code=status.HTTP_201_CREATED,
     responses=RESPOSTAS_CRIAR,
     summary="Cadastrar um novo exame laboratorial",
-    description="Cadastra um novo exame no acervo laboratorial, validando campos obrigatórios, integridade com a amostra biológica e normalizando resultados heurísticos.",
+    description=(
+        "Cadastra um novo exame no acervo laboratorial, validando campos obrigatórios, integridade com a amostra biológica e normalizando resultados heurísticos. "
+        "A chave primária (_id) é gerada automaticamente pelo banco e não deve ser informada."
+    ),
 )
 def criar_exame(
     exame_input: ExameCreate,
@@ -121,19 +124,26 @@ def obter_exame(identificador: str):
 def obter_exame_detalhes(identificador: str):
     return exame_service.obter_exame_detalhes(identificador)
 
-@router.patch(
-    "/{identificador}",
-    response_model=Exame,
-    responses=RESPOSTAS_ATUALIZAR,
-    summary="Atualizar exame",
-    description="Atualiza dados de um exame existente, validando integridade com a amostra e re-normalizando campos.",
-)
 @router.put(
     "/{identificador}",
     response_model=Exame,
     responses=RESPOSTAS_ATUALIZAR,
-    summary="Atualizar exame (completo)",
-    description="Atualiza os dados de um exame existente no laboratório.",
+    summary="Atualizar exame",
+    description=(
+        "Atualiza dados de um exame existente, permitindo alterar apenas um campo ou mais e deixando o restante inalterado. "
+        "Valida integridade com a amostra e re-normaliza campos enviados. "
+        "O exame é identificado na rota; a chave primária (_id) é imutável."
+    ),
+)
+@router.patch(
+    "/{identificador}",
+    response_model=Exame,
+    responses=RESPOSTAS_ATUALIZAR,
+    summary="Atualizar exame (parcial)",
+    description=(
+        "Atualiza parcialmente os dados de um exame existente, permitindo alterar apenas os campos desejados e deixando o restante inalterado. "
+        "O exame é identificado na rota; a chave primária (_id) é imutável."
+    ),
 )
 def atualizar_exame(
     identificador: str,

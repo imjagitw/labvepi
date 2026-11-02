@@ -3,6 +3,8 @@ from typing import Optional, Union, List, Dict, Any
 from src.models.Especie import Especie, EspecieCreate, EspecieUpdate, EspecieDetails, Classe
 from src.models.Animal.animal import Animal
 from src.repositories.especie_repository import EspecieRepository, especie_repository
+from src.utils.repositorio import _CAMPOS_PROIBIDOS_ENTRADA
+from src.utils.excecoes import ConfirmacaoNecessariaError
 from etl.catalogo import normalizar_classe_taxonomica, formatar_nome_cientifico, importar_catalogo_csv
 
 # Garante resolução completa dos tipos para schemas OpenAPI
@@ -11,7 +13,7 @@ EspecieDetails.model_rebuild(_types_namespace={"Animal": Animal})
 class EspecieService:
     """
     Serviço responsável pelas ações de negócio e ciclo de vida da entidade Espécie:
-    - [CREATE] Validação, formatação taxonômica e cadastro de espécies.
+    - [CREATE] Validação, formatação taxonômica e cadastro de espécies com ID gerado automaticamente.
     - [READ] Consultas, buscas indexadas, listagem, contagem e filtros cruzados.
     - [UPDATE] Atualização com checagem de consistência e regras taxonômicas.
     - [DELETE] Exclusão com validação de existência.
@@ -49,13 +51,19 @@ class EspecieService:
     ) -> Especie:
         """[CREATE] Validações taxonômicas e cadastro de uma nova espécie."""
         if isinstance(dados, EspecieCreate):
-            nome_comum = dados.nome_comum
-            nome_cient = dados.nome_cientifico
-            classe_val = dados.classe
+            payload = dados.model_dump(by_alias=True)
         else:
-            nome_comum = dados.get("nome_comum") or dados.get("nome")
-            nome_cient = dados.get("nome_cientifico")
-            classe_val = dados.get("classe")
+            payload = dict(dados)
+
+        # A chave primária (id/_id) é gerada automaticamente pelo banco/repositório:
+        # nunca é aceita na entrada do usuário (conforme animal e amostra).
+        for chave in _CAMPOS_PROIBIDOS_ENTRADA:
+            payload.pop(chave, None)
+        payload.pop("confirmar_nova_especie", None)
+
+        nome_comum = payload.get("nome_comum") or payload.get("nome")
+        nome_cient = payload.get("nome_cientifico")
+        classe_val = payload.get("classe")
 
         if not nome_comum or not str(nome_comum).strip():
             raise ValueError("O nome comum da espécie é obrigatório.")
@@ -75,7 +83,7 @@ class EspecieService:
             nome_cientifico=nome_cient_formatado,
             classe=classe_canon,
         )
-        return self.repo.save(especie)
+        return self.repo.create(especie)
 
     def obter_especie(self, id_especie: Union[int, str]) -> Especie:
         """[READ] Recupera uma espécie cadastrada pelo seu identificador primário."""
@@ -174,6 +182,11 @@ class EspecieService:
         else:
             dados_novos = {k: v for k, v in dados_atualizacao.items() if v is not None}
 
+        # Descarta tentativas de alterar a chave primária ou flags de confirmação
+        for chave in (*_CAMPOS_PROIBIDOS_ENTRADA, "confirmar_atualizacao_especie"):
+            dados_novos.pop(chave, None)
+        dados_novos = {k: v for k, v in dados_novos.items() if v is not None}
+
         nome_comum = dados_novos.get("nome_comum") or dados_novos.get("nome") or especie_atual.nome_comum
         nome_cient = dados_novos.get("nome_cientifico") or especie_atual.nome_cientifico
         classe_val = dados_novos.get("classe") or especie_atual.classe
@@ -241,9 +254,18 @@ class EspecieService:
             )
 
         if not confirmar_nova_especie:
-            raise ValueError(
-                f"A espécie '{nome_comum}' ({nome_cientifico}) não está no catálogo. "
-                "Confirme o cadastro da nova espécie ('confirmar_nova_especie=True') para prosseguir."
+            raise ConfirmacaoNecessariaError(
+                mensagem=(
+                    f"A espécie '{nome_comum}' ({nome_cientifico}) não está no catálogo. "
+                    "Confirme o cadastro da nova espécie ('confirmar_nova_especie=True') para prosseguir."
+                ),
+                codigo="ESPECIE_NAO_ENCONTRADA",
+                confirmacao="confirmar_nova_especie",
+                contexto={
+                    "nome_comum": nome_comum,
+                    "nome_cientifico": nome_cientifico,
+                    "classe": str(classe_canon.value if hasattr(classe_canon, "value") else classe_canon),
+                },
             )
 
         nova = self.cadastrar_especie(

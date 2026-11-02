@@ -42,6 +42,16 @@ from .reagente import (
     calcular_vencimento,
     calcular_metricas_estoque,
 )
+from .usuario import (
+    _ALIASES_USUARIO,
+    _MAPA_PERFIL_LEGADO,
+    normalizar_perfil,
+    normalizar_matricula,
+    normalizar_last_login,
+    normalizar_status_usuario,
+    normalizar_chaves_usuario,
+    _normalizar_chaves,
+)
 
 __all__ = [
     # Comum
@@ -83,4 +93,13 @@ __all__ = [
     "validar_lotes_unicos",
     "calcular_vencimento",
     "calcular_metricas_estoque",
+    # Usuario
+    "_ALIASES_USUARIO",
+    "_MAPA_PERFIL_LEGADO",
+    "normalizar_perfil",
+    "normalizar_matricula",
+    "normalizar_last_login",
+    "normalizar_status_usuario",
+    "normalizar_chaves_usuario",
+    "_normalizar_chaves",
 ]

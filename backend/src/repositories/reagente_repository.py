@@ -2,12 +2,12 @@ import re
 from typing import Optional, List, Dict, Union, Any
 from datetime import date, datetime
 from src.models.Reagente import Reagente
-
-def _normalizar(texto: Optional[str]) -> str:
-    """Normaliza para chave indexada interna de busca em memória."""
-    if not texto:
-        return ""
-    return " ".join(texto.strip().split()).casefold()
+from src.utils.repositorio import (
+    _normalizar,
+    gerar_proximo_id_mongo,
+    doc_para_mongo,
+    preparar_doc_mongo,
+)
 
 class ReagenteRepository:
     """
@@ -57,16 +57,14 @@ class ReagenteRepository:
                 self._collection = get_db()[self.COLLECTION_NAME]
                 return self._collection
             except Exception:
+                self._use_mongo = False
                 return None
         return None
 
     def _do_mongo(self, doc: dict) -> Reagente:
-        d = dict(doc)
+        d = preparar_doc_mongo(doc)
         if "_id" in d and not isinstance(d["_id"], int):
-            if isinstance(d["_id"], str) and d["_id"].isdigit():
-                d["_id"] = int(d["_id"])
-            else:
-                d["_id"] = None
+            d["_id"] = None
 
         val = d.get("data_validade")
         if isinstance(val, str):
@@ -80,10 +78,13 @@ class ReagenteRepository:
         return Reagente(**d)
 
     def _para_mongo(self, reagente: Reagente) -> dict:
-        doc = reagente.model_dump(mode="json", by_alias=True, exclude_none=True)
-        if "_id" not in doc and reagente.id is not None:
-            doc["_id"] = int(reagente.id) if str(reagente.id).isdigit() else reagente.id
-        return doc
+        return doc_para_mongo(reagente)
+
+    def _gerar_proximo_id(self) -> int:
+        """Gera a próxima chave primária autoincrementada (max(_id) + 1)."""
+        proximo = gerar_proximo_id_mongo(self.collection, self._proximo_id)
+        self._proximo_id = proximo + 1
+        return proximo
 
     def _carregar_do_banco(self) -> None:
         if self.collection is None:
@@ -178,25 +179,9 @@ class ReagenteRepository:
         if existente:
             raise ValueError(f"Lote '{reagente.numero_lote}' já cadastrado para o reagente '{reagente.reagente_nome}'.")
 
-        if reagente.id is None:
-            if self.collection is not None:
-                try:
-                    doc_max = self.collection.find_one({"_id": {"$type": "number"}}, sort=[("_id", -1)])
-                    max_id = int(doc_max["_id"]) if doc_max and isinstance(doc_max.get("_id"), (int, float)) else 0
-                    reagente.id = max(max_id + 1, self._proximo_id)
-                except Exception:
-                    reagente.id = self._proximo_id
-            else:
-                reagente.id = self._proximo_id
-            self._proximo_id = reagente.id + 1
-        else:
-            chave_id = int(reagente.id)
-            if chave_id in self._por_id or (
-                self.collection is not None and self.collection.count_documents({"_id": chave_id}) > 0
-            ):
-                raise ValueError(f"Reagente com ID {chave_id} já existe no banco de dados.")
-            if chave_id >= self._proximo_id:
-                self._proximo_id = chave_id + 1
+        # A chave primária (id/_id) é SEMPRE gerada pela camada de persistência;
+        # qualquer valor pré-existente no objeto é descartado.
+        reagente.id = self._gerar_proximo_id()
 
         if not reagente.reagente_id:
             reagente.reagente_id = f"REA_{reagente.id:04d}"
@@ -205,7 +190,7 @@ class ReagenteRepository:
             if chave_rid in self._por_reagente_id or (
                 self.collection is not None and self.collection.count_documents({"reagente_id": chave_rid}) > 0
             ):
-                raise ValueError(f"Reagente com _id '{chave_rid}' já existe no banco de dados.")
+                raise ValueError(f"Reagente com reagente_id '{chave_rid}' já existe no banco de dados.")
 
         if self.collection is not None:
             doc = self._para_mongo(reagente)
@@ -230,15 +215,8 @@ class ReagenteRepository:
 
         self._desindexar(antigo)
 
-        # Preserva ID numérico consistente
-        if reagente_atualizado.id is None:
-            reagente_atualizado.id = antigo.id
-        elif int(reagente_atualizado.id) != int(antigo.id):
-            chave_nova = int(reagente_atualizado.id)
-            if chave_nova in self._por_id:
-                raise ValueError(f"Já existe outro reagente com o ID {chave_nova}.")
-            if chave_nova >= self._proximo_id:
-                self._proximo_id = chave_nova + 1
+        # A chave primária é imutável: sempre preserva o id já persistido.
+        reagente_atualizado.id = antigo.id
 
         # Preserva reagente_id
         if not reagente_atualizado.reagente_id:

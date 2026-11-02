@@ -1,12 +1,13 @@
 import re
 from typing import Optional, List, Dict, Union, Any
 from src.models.Especie import Especie, Classe
-
-def _normalizar(texto: str) -> str:
-    """Normaliza para chave indexada interna de busca em memória."""
-    if not texto:
-        return ""
-    return " ".join(texto.strip().split()).casefold()
+from src.utils.repositorio import (
+    _normalizar,
+    sanitizar_id_filtro,
+    gerar_proximo_id_mongo,
+    doc_para_mongo,
+    preparar_doc_mongo,
+)
 
 class EspecieRepository:
     """
@@ -14,7 +15,7 @@ class EspecieRepository:
     Responsabilidade exclusiva:
     - Armazenar, consultar, atualizar e remover espécies no MongoDB (com suporte a cache indexado em memória).
     - Atuar como camada de acesso a dados (DAO/Persistência).
-    - NÃO contém regras de negócio, validações taxonômicas ou parsing de arquivos.
+    - Chaves primárias (id/_id) são gerenciadas e geradas exclusivamente pela camada de persistência.
     """
     COLLECTION_NAME = "especies"
 
@@ -24,7 +25,7 @@ class EspecieRepository:
         db: Optional[Any] = None,
         use_mongo: bool = False,
     ):
-        self._por_id: Dict[int, Especie] = {}
+        self._por_id: Dict[Union[int, str], Especie] = {}
         self._por_comum: Dict[str, Especie] = {}
         self._por_cientifico: Dict[str, Especie] = {}
         self._por_classe: Dict[Classe, List[Especie]] = {}
@@ -56,17 +57,17 @@ class EspecieRepository:
         return None
 
     def _do_mongo(self, doc: dict) -> Especie:
-        d = dict(doc)
-        if "_id" in d and not isinstance(d["_id"], int):
-            if isinstance(d["_id"], str) and d["_id"].isdigit():
-                d["_id"] = int(d["_id"])
+        d = preparar_doc_mongo(doc)
         return Especie(**d)
 
     def _para_mongo(self, especie: Especie) -> dict:
-        doc = especie.model_dump(mode="json", by_alias=True, exclude_none=True)
-        if "_id" not in doc and especie.id is not None:
-            doc["_id"] = int(especie.id) if str(especie.id).isdigit() else especie.id
-        return doc
+        return doc_para_mongo(especie)
+
+    def _gerar_proximo_id(self) -> int:
+        """Gera a próxima chave primária autoincrementada (max(_id) + 1)."""
+        proximo = gerar_proximo_id_mongo(self.collection, self._proximo_id)
+        self._proximo_id = proximo + 1
+        return proximo
 
     def _carregar_do_banco(self) -> None:
         if self.collection is None:
@@ -84,7 +85,8 @@ class EspecieRepository:
             pass
 
     def _indexar(self, especie: Especie) -> None:
-        chave_id = int(especie.id) if str(especie.id).isdigit() else hash(especie.id)
+        filtro_id = sanitizar_id_filtro(especie.id)
+        chave_id = filtro_id if isinstance(filtro_id, int) else hash(filtro_id)
         chave_comum = _normalizar(especie.nome_comum)
         chave_cient = _normalizar(especie.nome_cientifico)
         chave_classe = especie.classe
@@ -100,26 +102,21 @@ class EspecieRepository:
         if especie not in self._por_classe[chave_classe]:
             self._por_classe[chave_classe].append(especie)
 
-        if isinstance(chave_id, int) and chave_id >= self._proximo_id:
-            self._proximo_id = chave_id + 1
+        if isinstance(filtro_id, int) and filtro_id >= self._proximo_id:
+            self._proximo_id = filtro_id + 1
 
     def create(self, especie: Especie) -> Especie:
-        """Persiste um novo registro de espécie no banco de dados MongoDB."""
-        if especie.id is None:
-            if self.collection is not None:
-                try:
-                    doc_max = self.collection.find_one({"_id": {"$type": "number"}}, sort=[("_id", -1)])
-                    max_id = int(doc_max["_id"]) if doc_max and isinstance(doc_max.get("_id"), (int, float)) else 0
-                    especie.id = max(max_id + 1, self._proximo_id)
-                except Exception:
-                    especie.id = self._proximo_id
-            else:
-                especie.id = self._proximo_id
-            self._proximo_id = int(especie.id) + 1
+        """
+        Persiste um novo registro de espécie no banco de dados MongoDB.
+        A chave primária (id/_id) é SEMPRE gerada pela camada de persistência;
+        qualquer valor pré-existente no objeto é descartado (conforme animal e amostra).
+        """
+        especie.id = self._gerar_proximo_id()
 
-        filtro_id = int(especie.id) if str(especie.id).isdigit() else especie.id
+        filtro_id = sanitizar_id_filtro(especie.id)
         especie.id = filtro_id
         chave_id = filtro_id if isinstance(filtro_id, int) else hash(filtro_id)
+
         if chave_id in self._por_id or (self.collection is not None and self.collection.count_documents({"_id": filtro_id}) > 0):
             raise ValueError(f"Registro com ID {especie.id} já existe no banco de dados.")
 
@@ -133,20 +130,16 @@ class EspecieRepository:
     def save(self, especie: Especie) -> Especie:
         """Alias para persistir a espécie (create ou update se já possuir ID cadastrado)."""
         if especie.id is not None:
-            try:
-                filtro_id = int(especie.id) if str(especie.id).isdigit() else especie.id
-                chave_id = filtro_id if isinstance(filtro_id, int) else hash(filtro_id)
-                if chave_id in self._por_id or (self.collection is not None and self.collection.count_documents({"_id": filtro_id}) > 0):
-                    return self.update(filtro_id, especie)
-            except (ValueError, TypeError):
-                pass
+            filtro_id = sanitizar_id_filtro(especie.id)
+            if self.exists(filtro_id):
+                return self.update(filtro_id, especie)
         return self.create(especie)
 
     def update(self, id_especie: Union[int, str], especie_atualizada: Especie) -> Especie:
         """Atualiza os dados de uma espécie persistida e sincroniza os índices."""
-        filtro_id = int(id_especie) if str(id_especie).isdigit() else id_especie
+        filtro_id = sanitizar_id_filtro(id_especie)
         chave_id = filtro_id if isinstance(filtro_id, int) else hash(filtro_id)
-        if chave_id not in self._por_id and (self.collection is None or self.collection.count_documents({"_id": filtro_id}) == 0):
+        if not self.exists(filtro_id):
             raise KeyError(f"Espécie com ID {id_especie} não encontrada no banco de dados.")
 
         antiga = self._por_id.get(chave_id)
@@ -174,7 +167,7 @@ class EspecieRepository:
 
     def buscar_por_id(self, id_especie: Union[int, str]) -> Optional[Especie]:
         """Recupera o registro pela chave primária ID."""
-        filtro_id = int(id_especie) if str(id_especie).isdigit() else id_especie
+        filtro_id = sanitizar_id_filtro(id_especie)
         chave_id = filtro_id if isinstance(filtro_id, int) else hash(filtro_id)
         if chave_id in self._por_id:
             return self._por_id[chave_id]
@@ -261,7 +254,7 @@ class EspecieRepository:
 
     def delete(self, id_especie: Union[int, str]) -> bool:
         """Exclui o registro do banco de dados pelo ID."""
-        filtro_id = int(id_especie) if str(id_especie).isdigit() else id_especie
+        filtro_id = sanitizar_id_filtro(id_especie)
         chave_id = filtro_id if isinstance(filtro_id, int) else hash(filtro_id)
 
         if chave_id not in self._por_id and self.collection is not None:
@@ -301,7 +294,7 @@ class EspecieRepository:
 
     def exists(self, id_especie: Union[int, str]) -> bool:
         """Verifica se existe registro com o ID fornecido."""
-        filtro_id = int(id_especie) if str(id_especie).isdigit() else id_especie
+        filtro_id = sanitizar_id_filtro(id_especie)
         chave_id = filtro_id if isinstance(filtro_id, int) else hash(filtro_id)
         if chave_id in self._por_id:
             return True
@@ -323,3 +316,5 @@ class EspecieRepository:
         self._proximo_id = 1
 
 especie_repository = EspecieRepository(use_mongo=True)
+
+__all__ = ["EspecieRepository", "especie_repository"]

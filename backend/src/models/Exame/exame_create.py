@@ -4,8 +4,12 @@ from typing import Optional
 from src.models.Exame import TipoExame, ResultadoExame, TesteLaboratorial
 
 class ExameCreate(BaseModel):
-    model_config = ConfigDict(populate_by_name=True)
-    id: Optional[int] = Field(default=None, alias="_id", description="Chave primária autoincrementada no banco")
+    """
+    Schema de entrada para NOVOS cadastros de exame laboratorial (DTO estrito):
+    - A chave primária ('id'/'_id') NÃO é aceita: é gerada automaticamente pelo banco.
+    """
+    model_config = ConfigDict(populate_by_name=True, extra="ignore")
+
     amostra_id: str # chave estrangeira para a tabela/documento de amostra
     exame_id: Optional[str] = None
     tipo_exame: TipoExame # patógeno ou painel investigado

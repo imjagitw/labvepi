@@ -11,6 +11,7 @@ from src.models.Exame import (
     TesteLaboratorial,
 )
 from src.repositories.exame_repository import ExameRepository, exame_repository
+from src.utils.repositorio import _CAMPOS_PROIBIDOS_ENTRADA
 from src.utils.normalizacao import (
     eh_nao_informado,
     normalizar_data,
@@ -50,7 +51,7 @@ _ALIASES_EXAME = {
 
 # Rótulos amigáveis para mensagens de erro de validação
 _ROTULOS_CAMPOS = {
-    "exame_id": "código do exame (_id)",
+    "exame_id": "código do exame (exame_id)",
     "amostra_id": "amostra vinculada (amostra_id)",
     "tipo_exame": "tipo de exame / patógeno investigado (tipo_exame)",
     "resultado": "resultado do exame (resultado)",
@@ -319,7 +320,14 @@ class ExameService:
             conf_amostra = payload.pop("confirmar_nova_amostra", False) or confirmar_nova_amostra
             conf_exame = payload.pop("confirmar_novo_exame", False) or confirmar_novo_exame
 
+        # A chave primária (id/_id) é gerada automaticamente pelo banco/repositório:
+        # nunca é aceita na entrada do usuário.
+        for chave in _CAMPOS_PROIBIDOS_ENTRADA:
+            payload.pop(chave, None)
+
         payload = self._normalizar_chaves(payload)
+        for chave in (*_CAMPOS_PROIBIDOS_ENTRADA, "confirmar_novo_exame", "confirmar_nova_amostra"):
+            payload.pop(chave, None)
 
         # Validação do vínculo com a amostra
         amostra_id = payload.get("amostra_id")
@@ -479,9 +487,13 @@ class ExameService:
             novos = {k: v for k, v in dados_atualizacao.items() if v is not None}
             conf_amostra = novos.pop("confirmar_nova_amostra", False) or confirmar_nova_amostra
 
-        novos = self._normalizar_chaves(novos)
-        for chave in ("id", "confirmar_atualizacao_exame", "confirmar_novo_exame", "confirmar_nova_amostra"):
+        for chave in _CAMPOS_PROIBIDOS_ENTRADA:
             novos.pop(chave, None)
+
+        novos = self._normalizar_chaves(novos)
+        for chave in (*_CAMPOS_PROIBIDOS_ENTRADA, "confirmar_atualizacao_exame", "confirmar_novo_exame", "confirmar_nova_amostra"):
+            novos.pop(chave, None)
+        novos = {k: v for k, v in novos.items() if v is not None}
 
         payload = self._normalizar_chaves(exame_atual.model_dump(by_alias=True))
 

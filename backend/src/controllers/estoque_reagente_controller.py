@@ -25,7 +25,10 @@ router = criar_router(prefix="/estoque_reagente", tags=["EstoqueReagente"])
     status_code=status.HTTP_201_CREATED,
     responses=RESPOSTAS_CRIAR,
     summary="Cadastrar nova visão de estoque consolidado",
-    description="Registra uma nova entidade agregada de estoque para um reagente químico/biológico, consolidando métricas e vinculando lotes iniciais caso fornecidos.",
+    description=(
+        "Registra uma nova entidade agregada de estoque para um reagente químico/biológico, consolidando métricas e vinculando lotes iniciais caso fornecidos. "
+        "A chave primária (_id) é gerada automaticamente pelo banco e não deve ser informada."
+    ),
 )
 def criar_estoque(
     estoque_input: EstoqueReagenteCreate,
@@ -130,7 +133,22 @@ def obter_estoque_detalhes(identificador: str):
     response_model=EstoqueReagente,
     responses=RESPOSTAS_ATUALIZAR,
     summary="Atualizar visão agregada de estoque",
-    description="Atualiza os metadados de um estoque consolidado (como código ou nome) e sincroniza os volumes agregados.",
+    description=(
+        "Atualiza os dados de um estoque consolidado (como código ou nome) e sincroniza os volumes agregados, "
+        "permitindo a alteração de apenas um campo ou mais e deixando o restante inalterado. "
+        "O estoque é identificado na rota; a chave primária (_id) é imutável."
+    ),
+)
+@router.patch(
+    "/{identificador}",
+    response_model=EstoqueReagente,
+    responses=RESPOSTAS_ATUALIZAR,
+    summary="Atualizar visão agregada de estoque (parcial)",
+    description=(
+        "Atualiza parcialmente os metadados de um estoque consolidado (como código ou nome), "
+        "permitindo alterar apenas os campos selecionados e deixando o restante inalterado. "
+        "O estoque é identificado na rota; a chave primária (_id) é imutável."
+    ),
 )
 def atualizar_estoque(
     identificador: str,

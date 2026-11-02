@@ -12,12 +12,12 @@ from src.models.Animal import (
     UnidadeIdade,
 )
 from src.models.Especie import Classe
-
-def _normalizar(texto: Optional[str]) -> str:
-    """Normaliza para chave indexada interna de busca em memória."""
-    if not texto:
-        return ""
-    return " ".join(texto.strip().split()).casefold()
+from src.utils.repositorio import (
+    _normalizar,
+    gerar_proximo_id_mongo,
+    doc_para_mongo,
+    preparar_doc_mongo,
+)
 
 class AnimalRepository:
     """
@@ -78,21 +78,11 @@ class AnimalRepository:
         return None
 
     def _do_mongo(self, doc: dict) -> Animal:
-        d = dict(doc)
-        if "animal_id" not in d and "_id" in d:
-            d["animal_id"] = str(d["_id"])
-        if "_id" in d and not isinstance(d["_id"], int):
-            if isinstance(d["_id"], str) and d["_id"].isdigit():
-                d["_id"] = int(d["_id"])
-            else:
-                d["_id"] = None
+        d = preparar_doc_mongo(doc, fallback_id_campo="animal_id")
         return Animal(**d)
 
     def _para_mongo(self, animal: Animal) -> dict:
-        doc = animal.model_dump(mode="json", by_alias=True, exclude_none=True)
-        if "_id" not in doc and animal.id is not None:
-            doc["_id"] = int(animal.id) if str(animal.id).isdigit() else animal.id
-        return doc
+        return doc_para_mongo(animal)
 
     def _carregar_do_banco(self) -> None:
         if self.collection is None:
@@ -189,6 +179,12 @@ class AnimalRepository:
             if lista and animal in lista:
                 lista.remove(animal)
 
+    def _gerar_proximo_id(self) -> int:
+        """Gera a próxima chave primária autoincrementada (max(_id) + 1)."""
+        proximo = gerar_proximo_id_mongo(self.collection, self._proximo_id)
+        self._proximo_id = proximo + 1
+        return proximo
+
     # -------------------------------------------------------------------------
     # OPERAÇÕES DE CRUD:
     # -------------------------------------------------------------------------
@@ -203,19 +199,9 @@ class AnimalRepository:
         ):
             raise ValueError(f"Animal com ID '{chave_id}' já está cadastrado.")
 
-        if animal.id is None:
-            if self.collection is not None:
-                try:
-                    doc_max = self.collection.find_one({"_id": {"$type": "number"}}, sort=[("_id", -1)])
-                    max_id = int(doc_max["_id"]) if doc_max and isinstance(doc_max.get("_id"), (int, float)) else 0
-                    animal.id = max(max_id + 1, self._proximo_id)
-                except Exception:
-                    animal.id = self._proximo_id
-            else:
-                animal.id = self._proximo_id
-            self._proximo_id = animal.id + 1
-        elif isinstance(animal.id, int) and animal.id >= self._proximo_id:
-            self._proximo_id = animal.id + 1
+        # A chave primária (id/_id) é SEMPRE gerada pela camada de persistência;
+        # qualquer valor pré-existente no objeto é descartado.
+        animal.id = self._gerar_proximo_id()
 
         if self.collection is not None:
             doc = self._para_mongo(animal)
@@ -243,8 +229,8 @@ class AnimalRepository:
 
         if antigo:
             self._desindexar(antigo)
-            if animal_atualizado.id is None and antigo.id is not None:
-                animal_atualizado.id = antigo.id
+            # A chave primária é imutável: sempre preserva o id já persistido.
+            animal_atualizado.id = antigo.id
 
         animal_atualizado.animal_id = chave
 

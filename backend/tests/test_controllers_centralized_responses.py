@@ -13,8 +13,8 @@ class TestCentralizedControllers(unittest.TestCase):
         self.assertIn("detail", res.json())
         self.assertIn("não encontrado", res.json()["detail"].lower())
 
-    def test_animal_controller_validation_error_returns_400(self):
-        # Enviar animal com espécie inédita sem confirmar nova espécie
+    def test_animal_controller_confirmacao_necessaria_returns_409(self):
+        # Enviar animal com espécie inédita sem confirmar nova espécie retorna 409 Conflict estruturado
         payload = {
             "animal_id": "ANI_ERR_01",
             "nome_comum": "Animal Inédito Desconhecido",
@@ -29,9 +29,11 @@ class TestCentralizedControllers(unittest.TestCase):
             "peso": 2.5,
         }
         res = self.client.post("/animal/?confirmar_nova_especie=false", json=payload)
-        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.status_code, 409)
         self.assertIn("detail", res.json())
-        self.assertIn("não está no catálogo", res.json()["detail"])
+        detail = res.json()["detail"]
+        self.assertEqual(detail["codigo"], "ESPECIE_NAO_ENCONTRADA")
+        self.assertEqual(detail["confirmacao"], "confirmar_nova_especie")
 
     def test_especie_controller_not_found_returns_404(self):
         res = self.client.get("/especie/999999999")
@@ -163,6 +165,10 @@ class TestCentralizedControllers(unittest.TestCase):
         self.assertEqual(res_del.content, b"")
 
     def test_amostra_controller_crud_flow(self):
+        # Limpa registros remanescentes de testes anteriores
+        self.client.delete("/amostra/AMO_CENTRAL_01")
+        self.client.delete("/animal/ANI_AMO_01")
+
         # Garante animal existente
         self.client.post(
             "/animal/?confirmar_nova_especie=true",
@@ -270,6 +276,8 @@ class TestCentralizedControllers(unittest.TestCase):
         )
 
         payload_exame = {
+            "id": 999999,
+            "_id": "EX_FAKE_PK",
             "amostra_id": "AMO_EXA_01",
             "tipo_exame": "Raiva",
             "resultado": "Negativo",
@@ -284,7 +292,10 @@ class TestCentralizedControllers(unittest.TestCase):
         res_post = self.client.post("/exame/", json=payload_exame)
         self.assertEqual(res_post.status_code, 201)
         exame_criado = res_post.json()
-        exame_id = exame_criado.get("exame_id") or exame_criado.get("id") or exame_criado.get("_id")
+        pk_criado = exame_criado.get("id") or exame_criado.get("_id")
+        self.assertNotEqual(pk_criado, 999999)
+        self.assertNotEqual(exame_criado.get("exame_id"), "EX_FAKE_PK")
+        exame_id = exame_criado.get("exame_id") or pk_criado
 
         # Obter exame
         res_get = self.client.get(f"/exame/{exame_id}")

@@ -10,11 +10,11 @@ class AmostraCreate(BaseModel):
     - Campos laboratoriais e de rastreamento obrigatórios sem defaults permissivos.
     - Rejeição de valores 'Não informado' e sentinelas é validada em AmostraService.criar_amostra.
     - Cargas de planilhas são pré-processadas e canonicizadas pelo pipeline de ETL.
+    - A chave primária ('id'/'_id') NÃO é aceita: é gerada automaticamente pelo banco.
     """
-    model_config = ConfigDict(populate_by_name=True)
+    model_config = ConfigDict(populate_by_name=True, extra="ignore")
 
     # Identificação e vínculos primários
-    id: Optional[int] = Field(default=None, alias="_id", description="Chave primária autoincrementada no banco")
     amostra_id: str = Field(..., description="ID único do laboratório (ex: L 1, AMS001)")
     animal_id: str = Field(..., alias="animal", description="ID ou chave do animal vinculado (ex: AN001, A547)")
 
@@ -117,14 +117,10 @@ class AmostraCreate(BaseModel):
         description="Observações e notas adicionais sobre a amostra"
     )
 
-    # Flags de controle de fluxo / confirmação
-    confirmar_nova_amostra: bool = Field(
-        default=False,
-        description="Confirmação explícita de cadastro de nova amostra"
-    )
+    # Confirmação de regra de negócio (a confirmação genérica "deseja salvar?" é do frontend)
     confirmar_novo_animal: bool = Field(
         default=False,
-        description="Confirmação de vínculo a animal recém-cadastrado"
+        description="Confirma a vinculação a um animal ainda não cadastrado no acervo (responde ao 409 ANIMAL_NAO_ENCONTRADO)"
     )
 
     # =========================================================================

@@ -5,19 +5,19 @@ from src.models.Reagente import Reagente, ReagenteUpdate, ReagenteCreate
 class EstoqueReagenteUpdate(BaseModel):
     """
     Schema de atualização / DTO de entrada para consolidação de estoque de reagente.
-    Contém apenas atributos e tipagens declarativas para atualização de estoque e lotes vinculados,
-    sem propriedades computadas em tempo de execução.
+    - O estoque é identificado pelo identificador na rota da requisição (PUT/PATCH /estoque_reagente/{identificador}).
+    - A chave primária ('id'/'_id', gerada pelo banco) é imutável e não é aceita no corpo:
+      campos extras são ignorados.
+    - Suporta atualização parcial ou completa.
     """
-    model_config = ConfigDict(populate_by_name=True)
+    model_config = ConfigDict(populate_by_name=True, extra="ignore")
 
-    # Obrigatórios
-    reagente_nome: str = Field(..., alias="nome", description="Nome do reagente")
-
-    # Opcionais
+    # Opcionais (atualização parcial ou completa: permite alterar um ou mais campos mantendo os demais inalterados)
+    reagente_nome: Optional[str] = Field(default=None, alias="nome", description="Nome do reagente")
     reagente_codigo: Optional[str] = Field(default=None, alias="codigo", description="Código de referência do reagente")
-    lotes: List[Union[Reagente, ReagenteUpdate, ReagenteCreate]] = Field(
-        default_factory=list, 
-        description="Lista de lotes associados ao reagente"
+    lotes: Optional[List[Union[Reagente, ReagenteUpdate, ReagenteCreate]]] = Field(
+        default=None, 
+        description="Lista de lotes associados ao reagente (se não informada, mantém os lotes atuais)"
     )
 
     # Flags de controle

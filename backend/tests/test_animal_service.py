@@ -358,11 +358,11 @@ class TestAnimalService(unittest.TestCase):
             self.service.atualizar_animal("LEG_002", {"peso": ""})
         with self.assertRaises(ValueError):
             self.service.atualizar_animal(
-                "LEG_002", AnimalUpdate(animal_id="LEG_002", orgao=Orgao.NAO_INFORMADO)
+                "LEG_002", AnimalUpdate(orgao=Orgao.NAO_INFORMADO)
             )
 
         atualizado = self.service.atualizar_animal(
-            "LEG_002", AnimalUpdate(animal_id="LEG_002", orgao=Orgao.HVU, status=RegimeVida.CATIVEIRO)
+            "LEG_002", AnimalUpdate(orgao=Orgao.HVU, status=RegimeVida.CATIVEIRO)
         )
         self.assertEqual(atualizado.orgao_origem, Orgao.HVU)
         self.assertEqual(atualizado.regime_vida, RegimeVida.CATIVEIRO)

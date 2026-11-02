@@ -64,6 +64,50 @@ class TestEspecieService(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.service.resolver_especie(nome_comum="Gato", nome_cientifico="Canis lupus familiaris")
 
+    def test_id_gerado_automaticamente_e_descarte_de_id_fornecido(self):
+        """Testa que id/_id fornecido pelo usuário é ignorado e gerado automaticamente pelo banco."""
+        # Usuário tenta forçar id customizado
+        esp1 = self.service.cadastrar_especie(
+            {
+                "id": 9999,
+                "_id": "custom_fake_id",
+                "nome_comum": "Lobo-guará",
+                "nome_cientifico": "Chrysocyon brachyurus",
+                "classe": Classe.MAMIFERO,
+            }
+        )
+        self.assertNotEqual(esp1.id, 9999)
+        self.assertNotEqual(esp1.id, "custom_fake_id")
+        self.assertEqual(esp1.id, 1)
+
+        # Segundo cadastro autoincrementa
+        esp2 = self.service.cadastrar_especie(
+            {
+                "nome_comum": "Tamanduá-bandeira",
+                "nome_cientifico": "Myrmecophaga tridactyla",
+                "classe": Classe.MAMIFERO,
+            }
+        )
+        self.assertEqual(esp2.id, 2)
+
+    def test_atualizar_especie_ignora_id_no_corpo(self):
+        """Testa que id/_id fornecido no corpo do update é descartado e o id da rota prevalece."""
+        esp = self.service.cadastrar_especie(
+            {"nome_comum": "Tatu-bola", "nome_cientifico": "Tolypeutes tricinctus", "classe": Classe.MAMIFERO}
+        )
+        orig_id = esp.id
+
+        atualizado = self.service.atualizar_especie(
+            orig_id,
+            {
+                "id": 8888,
+                "_id": 7777,
+                "nome_comum": "Tatu-bola-do-nordeste",
+            },
+        )
+        self.assertEqual(atualizado.id, orig_id)
+        self.assertEqual(atualizado.nome_comum, "Tatu-bola-do-nordeste")
+
 
 if __name__ == "__main__":
     unittest.main()

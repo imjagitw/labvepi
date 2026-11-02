@@ -15,6 +15,7 @@ from src.repositories.estoque_reagente_repository import (
     EstoqueReagenteRepository,
     estoque_reagente_repository,
 )
+from src.utils.repositorio import _CAMPOS_PROIBIDOS_ENTRADA
 from src.utils.normalizacao import (
     eh_nao_informado,
     normalizar_chaves_estoque,
@@ -266,7 +267,14 @@ class EstoqueReagenteService:
             conf_estoque = payload.pop("confirmar_novo_estoque", False) or confirmar_novo_estoque
             conf_reagente = payload.pop("confirmar_novo_reagente", False) or confirmar_novo_reagente
 
+        # A chave primária (id/_id) é gerada automaticamente pelo banco/repositório:
+        # nunca é aceita na entrada do usuário.
+        for chave in _CAMPOS_PROIBIDOS_ENTRADA:
+            payload.pop(chave, None)
+
         payload = self._normalizar_chaves(payload)
+        for chave in (*_CAMPOS_PROIBIDOS_ENTRADA, "confirmar_novo_estoque", "confirmar_novo_reagente"):
+            payload.pop(chave, None)
         self.aplicar_obrigatoriedade(payload)
 
         nome = payload["reagente_nome"]
@@ -404,9 +412,13 @@ class EstoqueReagenteService:
         else:
             novos = {k: v for k, v in dados_atualizacao.items() if v is not None}
 
-        novos = self._normalizar_chaves(novos)
-        for chave in ("id", "confirmar_atualizacao_estoque", "confirmar_atualizacao_reagente"):
+        for chave in _CAMPOS_PROIBIDOS_ENTRADA:
             novos.pop(chave, None)
+
+        novos = self._normalizar_chaves(novos)
+        for chave in (*_CAMPOS_PROIBIDOS_ENTRADA, "confirmar_atualizacao_estoque", "confirmar_atualizacao_reagente"):
+            novos.pop(chave, None)
+        novos = {k: v for k, v in novos.items() if v is not None}
 
         payload = self._normalizar_chaves(estoque_atual.model_dump(by_alias=True))
         payload.update(novos)
@@ -445,11 +457,8 @@ class EstoqueReagenteService:
         estoque_consolidado = self.consolidar_estoque(nome=novo_nome, codigo=novo_codigo, lotes=lotes_atualizados)
         estoque_consolidado.id = estoque_atual.id
 
-        # Se o nome mudou, remove chave antiga do repositório
-        if novo_nome != nome_antigo:
-            self.estoque_repo.delete(nome_antigo)
-
-        return self.estoque_repo.save(estoque_consolidado)
+        chave_update = estoque_atual.id if estoque_atual.id is not None else nome_antigo
+        return self.estoque_repo.update(chave_update, estoque_consolidado)
 
     def deletar_estoque(
         self,

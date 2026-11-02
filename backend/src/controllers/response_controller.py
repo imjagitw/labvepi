@@ -11,6 +11,7 @@ Este módulo concentra:
 
 Mapeamento de exceções:
     - NoContentError / SemConteudoError -> 204 No Content
+    - ConfirmacaoNecessariaError        -> 409 Conflict (detail estruturado com 'codigo')
     - ValueError                        -> 400 Bad Request
     - PermissionError                   -> 403 Forbidden
     - KeyError / FileNotFoundError      -> 404 Not Found
@@ -22,6 +23,7 @@ from fastapi import APIRouter, HTTPException, Request, Response, status
 from fastapi.responses import JSONResponse
 from fastapi.routing import APIRoute
 from pydantic import BaseModel
+from src.utils.excecoes import ConfirmacaoNecessariaError
 
 # ---------------------------------------------------------------------------
 # Exceções semânticas
@@ -42,6 +44,17 @@ class ErroResposta(BaseModel):
     """Corpo padrão retornado pela API em respostas de erro."""
     detail: str
 
+class DetalheConfirmacao(BaseModel):
+    """Detalhe estruturado de uma confirmação de regra de negócio pendente."""
+    codigo: str
+    mensagem: str
+    confirmacao: str
+    contexto: Dict[str, Any] = {}
+
+class ErroConfirmacaoResposta(BaseModel):
+    """Corpo retornado em 409 Conflict quando a operação exige confirmação do usuário."""
+    detail: DetalheConfirmacao
+
 # ---------------------------------------------------------------------------
 # Catálogo de respostas HTTP possíveis
 # ---------------------------------------------------------------------------
@@ -57,8 +70,21 @@ RESPOSTAS: Dict[int, Dict[str, Any]] = {
     },
     status.HTTP_400_BAD_REQUEST: {
         "model": ErroResposta,
-        "description": "Requisição inválida: regra de negócio violada, dado duplicado ou confirmação ausente.",
+        "description": "Requisição inválida: regra de negócio violada ou dado duplicado.",
         "content": {"application/json": {"example": {"detail": "Registro com ID 'X' já está cadastrado."}}},
+    },
+    status.HTTP_409_CONFLICT: {
+        "model": ErroConfirmacaoResposta,
+        "description": (
+            "Operação exige confirmação explícita do usuário. Identifique o caso por 'detail.codigo' "
+            "e reenvie a requisição com o parâmetro indicado em 'detail.confirmacao' = true."
+        ),
+        "content": {"application/json": {"example": {"detail": {
+            "codigo": "ANIMAL_NAO_ENCONTRADO",
+            "mensagem": "Animal com ID 'AN999' não encontrado no acervo do laboratório.",
+            "confirmacao": "confirmar_novo_animal",
+            "contexto": {"animal_id": "AN999"},
+        }}}},
     },
     status.HTTP_403_FORBIDDEN: {
         "model": ErroResposta,
@@ -93,6 +119,7 @@ RESPOSTAS_CRIAR = respostas(
     status.HTTP_400_BAD_REQUEST,
     status.HTTP_403_FORBIDDEN,
     status.HTTP_404_NOT_FOUND,
+    status.HTTP_409_CONFLICT,
 )
 RESPOSTAS_LISTAR = respostas(
     status.HTTP_400_BAD_REQUEST
@@ -107,7 +134,8 @@ RESPOSTAS_OBTER = respostas(
 RESPOSTAS_ATUALIZAR = respostas(
     status.HTTP_400_BAD_REQUEST, 
     status.HTTP_403_FORBIDDEN, 
-    status.HTTP_404_NOT_FOUND
+    status.HTTP_404_NOT_FOUND,
+    status.HTTP_409_CONFLICT,
 )
 RESPOSTAS_DELETAR = respostas(
     status.HTTP_204_NO_CONTENT, 
@@ -124,14 +152,22 @@ RESPOSTAS_PROCESSAMENTO = respostas(
 # Mapeamento exceção -> status HTTP
 # ---------------------------------------------------------------------------
 EXCECOES_HTTP: Tuple[Tuple[Type[Exception], int], ...] = (
+    # Ordem importa: ConfirmacaoNecessariaError é subclasse de ValueError.
+    (ConfirmacaoNecessariaError, status.HTTP_409_CONFLICT),
     (KeyError, status.HTTP_404_NOT_FOUND),
     (FileNotFoundError, status.HTTP_404_NOT_FOUND),
     (ValueError, status.HTTP_400_BAD_REQUEST),
     (PermissionError, status.HTTP_403_FORBIDDEN),
 )
 
-def _mensagem(exc: Exception) -> str:
-    """Extrai a mensagem da exceção (KeyError adiciona aspas em str(), por isso usa args[0])."""
+def _mensagem(exc: Exception) -> Any:
+    """
+    Extrai o detalhe da exceção:
+    - ConfirmacaoNecessariaError -> dict estruturado (codigo, mensagem, confirmacao, contexto).
+    - KeyError adiciona aspas em str(), por isso usa args[0].
+    """
+    if isinstance(exc, ConfirmacaoNecessariaError):
+        return exc.para_dict()
     if isinstance(exc, (KeyError, FileNotFoundError)) and exc.args:
         return str(exc.args[0])
     return str(exc)
@@ -280,9 +316,11 @@ __all__ = [
     "registrar_tratamento_erros",
     "NoContentError",
     "SemConteudoError",
+    "ConfirmacaoNecessariaError",
     "EXCECOES_HTTP",
     # Catálogo de respostas HTTP
     "ErroResposta",
+    "ErroConfirmacaoResposta",
     "RESPOSTAS",
     "respostas",
     "RESPOSTAS_CRIAR",

@@ -11,9 +11,9 @@ class AnimalCreate(BaseModel):
     como string com unidade ('400g', '2.5kg'), float em kg ou 'Não aferido'.
     A idade pode ser informada estruturada (idade_valor + idade_unidade),
     textual ('6 meses') ou diretamente via faixa_etaria.
+    A chave primária ('id'/'_id') NÃO é aceita: é gerada automaticamente pelo banco.
     """
-    model_config = ConfigDict(populate_by_name=True)
-    id: Optional[int] = Field(default=None, alias="_id", description="Chave primária autoincrementada no banco")
+    model_config = ConfigDict(populate_by_name=True, extra="ignore")
     animal_id: str = Field(..., min_length=1, description="ID único do laboratório (ex: AN001)")
 
     # Espécie: basta nome_comum OU nome_cientifico se a espécie estiver no catálogo;
@@ -68,7 +68,6 @@ class AnimalCreate(BaseModel):
     funcao: Optional[Funcao] = Funcao.NAO_APLICAVEL
     suspeita_clinica: Optional[str] = None
     animal_observacoes: Optional[str] = Field(default=None, alias="observacoes")
-    confirmar_novo_animal: bool = False
     confirmar_nova_especie: bool = False
 
     # =========================================================================

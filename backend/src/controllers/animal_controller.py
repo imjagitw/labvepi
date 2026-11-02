@@ -28,7 +28,10 @@ router = criar_router(prefix="/animal", tags=["Animal"])
     status_code=status.HTTP_201_CREATED,
     responses=RESPOSTAS_CRIAR,
     summary="Cadastrar um novo animal",
-    description="Cria um novo animal automatizando espécie e classe a partir do catálogo do laboratório.",
+    description=(
+        "Cria um novo animal automatizando espécie e classe a partir do catálogo do laboratório. "
+        "A chave primária (_id) é gerada automaticamente pelo banco e não deve ser informada."
+    ),
 )
 def criar_animal(
     animal_input: AnimalCreate,
@@ -92,7 +95,20 @@ def obter_animal_detalhes(animal_id: str):
     response_model=Animal,
     responses=RESPOSTAS_ATUALIZAR,
     summary="Atualizar animal",
-    description="Atualiza dados de um animal existente, re-resolvendo espécie automaticamente se necessário.",
+    description=(
+        "Atualiza dados de um animal existente, permitindo a alteração de apenas um campo ou mais e deixando o restante inalterado. "
+        "O animal é identificado pelo animal_id da rota; a chave primária (_id) é imutável."
+    ),
+)
+@router.patch(
+    "/{animal_id}",
+    response_model=Animal,
+    responses=RESPOSTAS_ATUALIZAR,
+    summary="Atualizar animal (parcial)",
+    description=(
+        "Atualiza parcialmente os dados de um animal existente, permitindo alterar apenas os campos selecionados e deixando o restante inalterado. "
+        "O animal é identificado pelo animal_id da rota; a chave primária (_id) é imutável."
+    ),
 )
 def atualizar_animal(
     animal_id: str,

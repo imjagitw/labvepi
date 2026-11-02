@@ -6,6 +6,7 @@ from src.controllers.amostra_controller import router as amostra_router
 from src.controllers.exame_controller import router as exame_router
 from src.controllers.estoque_reagente_controller import router as estoque_reagente_router
 from src.controllers.reagente_controller import router as reagente_router
+from src.controllers.usuario_controller import router as usuario_router
 from src.models.Especie.especie_details import EspecieDetails
 from src.models.Animal.animal import Animal
 from src.controllers.response_controller import registrar_tratamento_erros
@@ -35,6 +36,7 @@ app = FastAPI(
 
 registrar_tratamento_erros(app)
 
+app.include_router(usuario_router)
 app.include_router(animal_router)
 app.include_router(especie_router)
 app.include_router(amostra_router)

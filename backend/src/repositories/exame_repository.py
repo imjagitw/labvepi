@@ -6,12 +6,12 @@ from src.models.Exame import (
     ResultadoExame,
     TesteLaboratorial,
 )
-
-def _normalizar(texto: Optional[str]) -> str:
-    """Normaliza para chave indexada interna de busca em memória."""
-    if not texto:
-        return ""
-    return " ".join(texto.strip().split()).casefold()
+from src.utils.repositorio import (
+    _normalizar,
+    gerar_proximo_id_mongo,
+    doc_para_mongo,
+    preparar_doc_mongo,
+)
 
 class ExameRepository:
     """
@@ -61,25 +61,24 @@ class ExameRepository:
                 self._collection = get_db()[self.COLLECTION_NAME]
                 return self._collection
             except Exception:
+                self._use_mongo = False
                 return None
         return None
 
     def _do_mongo(self, doc: dict) -> Exame:
-        d = dict(doc)
-        if "exame_id" not in d and "_id" in d:
-            d["exame_id"] = str(d["_id"])
+        d = preparar_doc_mongo(doc, fallback_id_campo="exame_id")
         if "_id" in d and not isinstance(d["_id"], int):
-            if isinstance(d["_id"], str) and d["_id"].isdigit():
-                d["_id"] = int(d["_id"])
-            else:
-                d["_id"] = None
+            d["_id"] = None
         return Exame(**d)
 
     def _para_mongo(self, exame: Exame) -> dict:
-        doc = exame.model_dump(mode="json", by_alias=True, exclude_none=True)
-        if "_id" not in doc and exame.id is not None:
-            doc["_id"] = int(exame.id) if str(exame.id).isdigit() else exame.id
-        return doc
+        return doc_para_mongo(exame)
+
+    def _gerar_proximo_id(self) -> int:
+        """Gera a próxima chave primária autoincrementada (max(_id) + 1)."""
+        proximo = gerar_proximo_id_mongo(self.collection, self._proximo_id)
+        self._proximo_id = proximo + 1
+        return proximo
 
     def _carregar_do_banco(self) -> None:
         if self.collection is None:
@@ -163,25 +162,9 @@ class ExameRepository:
         if not exame.amostra_id:
             raise ValueError("O vínculo com o identificador da amostra (amostra_id) é obrigatório.")
 
-        if exame.id is None:
-            if self.collection is not None:
-                try:
-                    doc_max = self.collection.find_one({"_id": {"$type": "number"}}, sort=[("_id", -1)])
-                    max_id = int(doc_max["_id"]) if doc_max and isinstance(doc_max.get("_id"), (int, float)) else 0
-                    exame.id = max(max_id + 1, self._proximo_id)
-                except Exception:
-                    exame.id = self._proximo_id
-            else:
-                exame.id = self._proximo_id
-            self._proximo_id = exame.id + 1
-        else:
-            chave_id = int(exame.id)
-            if chave_id in self._por_id or (
-                self.collection is not None and self.collection.count_documents({"_id": chave_id}) > 0
-            ):
-                raise ValueError(f"Exame com ID {chave_id} já existe no banco de dados.")
-            if chave_id >= self._proximo_id:
-                self._proximo_id = chave_id + 1
+        # A chave primária (id/_id) é SEMPRE gerada pela camada de persistência;
+        # qualquer valor pré-existente no objeto é descartado.
+        exame.id = self._gerar_proximo_id()
 
         if not exame.exame_id:
             exame.exame_id = f"EX_{exame.id:04d}"
@@ -215,15 +198,8 @@ class ExameRepository:
 
         self._desindexar(exame_antigo)
 
-        # Preserva ID numérico consistente
-        if exame_atualizado.id is None:
-            exame_atualizado.id = exame_antigo.id
-        elif int(exame_atualizado.id) != int(exame_antigo.id):
-            chave_nova = int(exame_atualizado.id)
-            if chave_nova in self._por_id:
-                raise ValueError(f"Já existe outro exame com o ID {chave_nova}.")
-            if chave_nova >= self._proximo_id:
-                self._proximo_id = chave_nova + 1
+        # A chave primária é imutável: sempre preserva o id já persistido.
+        exame_atualizado.id = exame_antigo.id
 
         # Preserva exame_id
         if not exame_atualizado.exame_id:

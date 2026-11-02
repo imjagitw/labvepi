@@ -219,6 +219,7 @@ class TestAmostraService(unittest.TestCase):
 class TestAmostraController(unittest.TestCase):
     def setUp(self):
         self.client = TestClient(app)
+        self.client.delete("/amostra/API_AMS01")
 
     def test_fluxo_api_amostras(self):
         """Testa requisições HTTP RESTful no endpoint /amostra/."""

@@ -4,8 +4,10 @@ from src.models.Especie.enums.Classe import Classe
 from src.models.Animal import Funcao, Orgao, RegimeVida, Sexo, StatusVital, FaixaEtaria, UnidadePeso, UnidadeIdade
 
 class AnimalUpdate(BaseModel):
-    model_config = ConfigDict(populate_by_name=True)
-    animal_id: str = Field(..., description="ID único do laboratório (ex: AN001)")
+    # O animal é identificado pelo 'animal_id' da rota (PUT /animal/{animal_id}).
+    # Nem a chave primária ('id'/'_id', gerada pelo banco) nem o 'animal_id'
+    # são aceitos no corpo: campos extras são ignorados.
+    model_config = ConfigDict(populate_by_name=True, extra="ignore")
     classe: Optional[Classe] = None
     nome_comum: Optional[str] = None
     nome_cientifico: Optional[str] = None
@@ -31,7 +33,6 @@ class AnimalUpdate(BaseModel):
     idade_unidade: Optional[UnidadeIdade] = None
     suspeita_clinica: Optional[str] = None
     animal_observacoes: Optional[str] = Field(default=None, alias="observacoes")
-    confirmar_atualizacao_animal: bool = False
     confirmar_nova_especie: bool = False
 
     # =========================================================================

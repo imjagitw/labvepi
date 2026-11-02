@@ -7,11 +7,11 @@ class EstoqueReagenteCreate(BaseModel):
     Schema de criação / DTO de entrada para consolidação de estoque de reagente.
     Contém apenas atributos e tipagens declarativas para cadastro inicial de estoque e vinculação de lotes,
     sem cálculos consolidados ou regras de conversão dimensional em tempo de execução.
+    A chave primária ('id'/'_id') NÃO é aceita: é gerada automaticamente pelo banco.
     """
-    model_config = ConfigDict(populate_by_name=True)
+    model_config = ConfigDict(populate_by_name=True, extra="ignore")
 
     # Obrigatórios
-    id: Optional[int] = None # Gerado automaticamente autoincrementado
     reagente_nome: str = Field(..., alias="nome", description="Nome do reagente")
 
     # Opcionais

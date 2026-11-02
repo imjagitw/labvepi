@@ -7,12 +7,12 @@ from src.models.Amostra import (
     MaterialBiologico,
     StatusAmostra,
 )
-
-def _normalizar(texto: Optional[str]) -> str:
-    """Normaliza para chave indexada interna de busca em memória."""
-    if not texto:
-        return ""
-    return " ".join(texto.strip().split()).casefold()
+from src.utils.repositorio import (
+    _normalizar,
+    gerar_proximo_id_mongo,
+    doc_para_mongo,
+    preparar_doc_mongo,
+)
 
 class AmostraRepository:
     """
@@ -64,21 +64,11 @@ class AmostraRepository:
         return None
 
     def _do_mongo(self, doc: dict) -> Amostra:
-        d = dict(doc)
-        if "amostra_id" not in d and "_id" in d:
-            d["amostra_id"] = str(d["_id"])
-        if "_id" in d and not isinstance(d["_id"], int):
-            if isinstance(d["_id"], str) and d["_id"].isdigit():
-                d["_id"] = int(d["_id"])
-            else:
-                d["_id"] = None
+        d = preparar_doc_mongo(doc, fallback_id_campo="amostra_id")
         return Amostra(**d)
 
     def _para_mongo(self, amostra: Amostra) -> dict:
-        doc = amostra.model_dump(mode="json", by_alias=True, exclude_none=True)
-        if "_id" not in doc and amostra.id is not None:
-            doc["_id"] = int(amostra.id) if str(amostra.id).isdigit() else amostra.id
-        return doc
+        return doc_para_mongo(amostra)
 
     def _carregar_do_banco(self) -> None:
         if self.collection is None:
@@ -155,6 +145,12 @@ class AmostraRepository:
             if amostra in self._por_status_amostra[amostra.status_amostra]:
                 self._por_status_amostra[amostra.status_amostra].remove(amostra)
 
+    def _gerar_proximo_id(self) -> int:
+        """Gera a próxima chave primária autoincrementada (max(_id) + 1)."""
+        proximo = gerar_proximo_id_mongo(self.collection, self._proximo_id)
+        self._proximo_id = proximo + 1
+        return proximo
+
     # -------------------------------------------------------------------------
     # OPERAÇÕES DE CRUD:
     # -------------------------------------------------------------------------
@@ -168,19 +164,9 @@ class AmostraRepository:
         ):
             raise ValueError(f"Amostra com ID '{chave_id}' já está cadastrada.")
 
-        if amostra.id is None:
-            if self.collection is not None:
-                try:
-                    doc_max = self.collection.find_one({"_id": {"$type": "number"}}, sort=[("_id", -1)])
-                    max_id = int(doc_max["_id"]) if doc_max and isinstance(doc_max.get("_id"), (int, float)) else 0
-                    amostra.id = max(max_id + 1, self._proximo_id)
-                except Exception:
-                    amostra.id = self._proximo_id
-            else:
-                amostra.id = self._proximo_id
-            self._proximo_id = amostra.id + 1
-        elif isinstance(amostra.id, int) and amostra.id >= self._proximo_id:
-            self._proximo_id = amostra.id + 1
+        # A chave primária (id/_id) é SEMPRE gerada pela camada de persistência;
+        # qualquer valor pré-existente no objeto é descartado.
+        amostra.id = self._gerar_proximo_id()
 
         if self.collection is not None:
             doc = self._para_mongo(amostra)
@@ -211,13 +197,8 @@ class AmostraRepository:
 
         if amostra_antiga:
             self._desindexar(amostra_antiga)
-            if amostra_atualizada.id is None:
-                amostra_atualizada.id = amostra_antiga.id
-            elif amostra_atualizada.id != amostra_antiga.id:
-                if amostra_atualizada.id in self._por_id:
-                    raise ValueError(f"Já existe uma amostra com o ID '{amostra_atualizada.id}'.")
-                if isinstance(amostra_atualizada.id, int) and amostra_atualizada.id >= self._proximo_id:
-                    self._proximo_id = amostra_atualizada.id + 1
+            # A chave primária é imutável: sempre preserva o id já persistido.
+            amostra_atualizada.id = amostra_antiga.id
 
         if self.collection is not None:
             doc = self._para_mongo(amostra_atualizada)

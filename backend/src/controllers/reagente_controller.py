@@ -25,7 +25,10 @@ router = criar_router(prefix="/reagente", tags=["Reagente"])
     status_code=status.HTTP_201_CREATED,
     responses=RESPOSTAS_CRIAR,
     summary="Cadastrar novo lote de reagente",
-    description="Registra um novo lote físico de reagente químico/biológico no laboratório, com validação de datas, unicidade de lote e sincronização automática de estoque.",
+    description=(
+        "Registra um novo lote físico de reagente químico/biológico no laboratório, com validação de datas, unicidade de lote e sincronização automática de estoque. "
+        "A chave primária (_id) é gerada automaticamente pelo banco e não deve ser informada."
+    ),
 )
 def criar_reagente(
     reagente_input: ReagenteCreate,
@@ -112,7 +115,21 @@ def obter_reagente_detalhes(identificador: str):
     response_model=Reagente,
     responses=RESPOSTAS_ATUALIZAR,
     summary="Atualizar lote de reagente",
-    description="Atualiza os dados de um lote físico existente, recalculando indicadores de vencimento e sincronizando o estoque consolidado correspondente.",
+    description=(
+        "Atualiza os dados de um lote físico existente, permitindo alterar apenas um campo ou mais e deixando o restante inalterado. "
+        "Recalcula indicadores de vencimento e sincroniza o estoque consolidado correspondente. "
+        "O reagente é identificado na rota; a chave primária (_id) é imutável."
+    ),
+)
+@router.patch(
+    "/{identificador}",
+    response_model=Reagente,
+    responses=RESPOSTAS_ATUALIZAR,
+    summary="Atualizar lote de reagente (parcial)",
+    description=(
+        "Atualiza parcialmente os dados de um lote físico existente, permitindo alterar apenas os campos selecionados e deixando o restante inalterado. "
+        "O reagente é identificado na rota; a chave primária (_id) é imutável."
+    ),
 )
 def atualizar_reagente(
     identificador: str,

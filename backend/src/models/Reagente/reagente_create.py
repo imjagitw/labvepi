@@ -8,11 +8,11 @@ class ReagenteCreate(BaseModel):
     Entidade representativa de um lote físico de reagente no laboratório.
     Contém apenas atributos e tipagens declarativas, sem ações temporais,
     resolução dinâmica de sinônimos ou validadores heurísticos.
+    A chave primária ('id'/'_id') NÃO é aceita: é gerada automaticamente pelo banco.
     """
-    model_config = ConfigDict(populate_by_name=True)
+    model_config = ConfigDict(populate_by_name=True, extra="ignore")
     
     # Obrigatórios
-    id: Optional[int] = Field(default=None, alias="_id", description="Chave primária autoincrementada no banco")
     reagente_codigo: str = Field(..., alias="codigo", description="Código do reagente")
     reagente_nome: str = Field(..., alias="nome", description="Nome do reagente")
     numero_lote: str = Field(..., description="Número identificador do lote")
