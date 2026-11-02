@@ -6,3 +6,5 @@ certifi
 pydantic-settings
 python-dotenv
 bcrypt
+pytest
+httpx

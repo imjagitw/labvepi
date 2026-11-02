@@ -9,6 +9,7 @@ from src.models.Reagente import (
     ReagenteDetails,
     EtapaReagente,
     UnidadeMedida,
+    StatusReagente,
 )
 from src.models.EstoqueReagente import EstoqueReagente
 from src.repositories.reagente_repository import ReagenteRepository, reagente_repository
@@ -18,6 +19,7 @@ from src.utils.normalizacao import (
     normalizar_data,
     normalizar_unidade_medida,
     normalizar_etapa_reagente,
+    normalizar_status_reagente,
     normalizar_quantidade_unidade,
     normalizar_quantidade_volume,
     normalizar_chaves_reagente,
@@ -121,6 +123,11 @@ class ReagenteService:
         return normalizar_etapa_reagente(valor, default=default)
 
     @staticmethod
+    def normalizar_status_reagente(valor: Any, default: Optional[StatusReagente] = StatusReagente.DISPONIVEL) -> Optional[StatusReagente]:
+        """Normaliza variações textuais para o Enum canônico StatusReagente."""
+        return normalizar_status_reagente(valor, default=default)
+
+    @staticmethod
     def normalizar_data(valor: Any, permitir_none: bool = False) -> Optional[date]:
         return normalizar_data(valor, permitir_none=permitir_none)
 
@@ -146,10 +153,20 @@ class ReagenteService:
         return calcular_vencimento(lote_ou_data)
 
     def calcular_status_validade(self, lote: Reagente) -> tuple[bool, int]:
-        """Enriquece a instância de Reagente com os dados de vencimento calculados."""
+        """
+        Enriquece a instância de Reagente com os dados de vencimento calculados.
+        Regra de status automático:
+        - Se o lote estiver vencido:
+            * Se o status for 'Esgotado', NÃO vira 'Vencido'.
+            * Se for 'Disponível' ou 'Reservado', vira 'Vencido' automaticamente.
+        """
         vencido, dias = self.calcular_vencimento(lote)
         lote.esta_vencido = vencido
         lote.dias_para_vencer = dias
+
+        if vencido and lote.status_reagente != StatusReagente.ESGOTADO:
+            lote.status_reagente = StatusReagente.VENCIDO
+
         return vencido, dias
 
     @classmethod
@@ -281,6 +298,17 @@ class ReagenteService:
             if eh_nao_informado(payload.get(campo)):
                 payload[campo] = None
 
+        st_raw = payload.get("status_reagente") or payload.get("status")
+        if st_raw:
+            st = normalizar_status_reagente(st_raw)
+        else:
+            st = StatusReagente.DISPONIVEL
+
+        if payload.get("esta_vencido") and st != StatusReagente.ESGOTADO:
+            st = StatusReagente.VENCIDO
+
+        payload["status_reagente"] = st
+
         return ReagenteDetails(**payload)
 
     montar_reagente_detalhes = preencher_nao_informados
@@ -341,6 +369,23 @@ class ReagenteService:
         payload["esta_vencido"] = vencido
         payload["dias_para_vencer"] = dias
 
+        # Regras de validação e atribuição de StatusReagente:
+        st_input = payload.get("status_reagente") or payload.get("status")
+        if st_input is not None:
+            st_norm = normalizar_status_reagente(st_input)
+        else:
+            st_norm = StatusReagente.DISPONIVEL
+
+        # O usuário não deve poder colocar como vencido um reagente que não está vencido
+        if st_norm == StatusReagente.VENCIDO and not vencido:
+            raise ValueError("Não é permitido definir o status como Vencido para um reagente cuja data de validade não expirou.")
+
+        # Status alterado automaticamente para vencido se expirado (exceto se esgotado)
+        if vencido and st_norm != StatusReagente.ESGOTADO:
+            st_norm = StatusReagente.VENCIDO
+
+        payload["status_reagente"] = st_norm
+
         reagente = Reagente(**payload)
         reagente_salvo = self.reagente_repo.create(reagente)
 
@@ -385,6 +430,7 @@ class ReagenteService:
         codigo: Optional[str] = None,
         marca: Optional[str] = None,
         local_armazenamento: Optional[str] = None,
+        status: Optional[Union[StatusReagente, str]] = None,
         apenas_vencidos: Optional[bool] = None,
         termo_busca: Optional[str] = None,
         ordenar_por: str = "id",
@@ -394,11 +440,13 @@ class ReagenteService:
     ) -> List[Reagente]:
         """[READ] Retorna lista de lotes aplicando filtros laboratoriais, busca textual, ordenação e paginação."""
         self._verificar_permissao("listar_reagentes", usuario)
+        status_norm = normalizar_status_reagente(status) if status else None
         lotes = self.reagente_repo.listar(
             nome=nome,
             codigo=codigo,
             marca=marca,
             local_armazenamento=local_armazenamento,
+            status=status_norm,
             apenas_vencidos=apenas_vencidos,
             termo_busca=termo_busca,
             ordenar_por=ordenar_por,
@@ -407,6 +455,8 @@ class ReagenteService:
         )
         for lote in lotes:
             self.calcular_status_validade(lote)
+        if status_norm:
+            lotes = [l for l in lotes if l.status_reagente == status_norm]
         return lotes
 
     def listar_por_lote(self, numero_lote: str, usuario: Optional[Any] = None) -> List[Reagente]:
@@ -488,6 +538,42 @@ class ReagenteService:
         payload["esta_vencido"] = vencido
         payload["dias_para_vencer"] = dias
 
+        # Verificação e regras de transição de status:
+        status_atual = reagente_atual.status_reagente
+        novo_status = novos.get("status_reagente") or novos.get("status")
+
+        if novo_status is not None:
+            novo_status = normalizar_status_reagente(novo_status)
+
+            # Regra: se estiver como esgotado ele não vira vencido e se estiver como vencido ele não vira esgotado
+            if status_atual == StatusReagente.VENCIDO and novo_status == StatusReagente.ESGOTADO:
+                raise ValueError("Reagente com status Vencido não pode ser alterado para Esgotado.")
+
+            if status_atual == StatusReagente.ESGOTADO and novo_status == StatusReagente.VENCIDO:
+                raise ValueError("Reagente com status Esgotado não pode ser alterado para Vencido.")
+
+            # Regra: o usuário não deve poder colocar como vencido um reagente que não está vencido
+            if novo_status == StatusReagente.VENCIDO and not vencido:
+                raise ValueError("Não é permitido definir o status como Vencido para um reagente cuja data de validade não expirou.")
+
+            # Se venceu e não é esgotado, atualiza automaticamente para Vencido
+            if vencido and novo_status != StatusReagente.ESGOTADO:
+                novo_status = StatusReagente.VENCIDO
+
+            payload["status_reagente"] = novo_status
+        else:
+            # Novo status não informado explicitamente no update:
+            # Se já era ESGOTADO, não vira VENCIDO mesmo expirado
+            if status_atual == StatusReagente.ESGOTADO:
+                payload["status_reagente"] = StatusReagente.ESGOTADO
+            elif vencido:
+                payload["status_reagente"] = StatusReagente.VENCIDO
+            elif status_atual == StatusReagente.VENCIDO and not vencido:
+                # Caso a validade tenha sido estendida para o futuro: deixa de ser Vencido
+                payload["status_reagente"] = StatusReagente.DISPONIVEL
+            else:
+                payload["status_reagente"] = status_atual
+
         reagente_modificado = Reagente(**payload)
         reagente_salvo = self.reagente_repo.update(identificador, reagente_modificado)
 
@@ -533,4 +619,5 @@ __all__ = [
     "ReagenteDetails",
     "EtapaReagente",
     "UnidadeMedida",
+    "StatusReagente",
 ]

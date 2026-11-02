@@ -1,7 +1,7 @@
 from typing import Optional
 from pydantic import BaseModel, ConfigDict, Field
 from datetime import date
-from src.models.Reagente import EtapaReagente, UnidadeMedida
+from src.models.Reagente import EtapaReagente, UnidadeMedida, StatusReagente
 
 class ReagenteDetails(BaseModel):
     """
@@ -24,6 +24,11 @@ class ReagenteDetails(BaseModel):
     unidade_medida: UnidadeMedida = Field(default="ml", alias="unidade", description="Unidade de medida (ex: ml, L, g)")
     reagente_etapa: Optional[EtapaReagente] = Field(default=None, alias="etapa", description="Etapa laboratorial em que é empregado")
     reagente_observacoes: Optional[str] = Field(default=None, alias="observacoes", description="Observações complementares")
+    status_reagente: StatusReagente = Field(
+        default=StatusReagente.DISPONIVEL,
+        alias="status",
+        description="Status do reagente (Disponível, Vencido, Reservado, Esgotado)",
+    )
 
     esta_vencido: Optional[bool] = Field(default=None, description="Indicação se o lote está vencido (calculado pelo serviço)")
     dias_para_vencer: Optional[int] = Field(default=None, description="Dias restantes até o vencimento (calculado pelo serviço)")

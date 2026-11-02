@@ -1,6 +1,6 @@
-from datetime import date
+from datetime import date, datetime
 from typing import Any, Optional, Union, Dict, List
-from src.models.Reagente import UnidadeMedida, EtapaReagente
+from src.models.Reagente import UnidadeMedida, EtapaReagente, StatusReagente
 from .comum import eh_nao_informado, normalizar_enum
 
 # Fatores para conversão dimensional para unidades base:
@@ -40,6 +40,8 @@ _ALIASES_REAGENTE: Dict[str, str] = {
     "armazenamento": "reagente_local_armazenamento",
     "observacoes": "reagente_observacoes",
     "observacao": "reagente_observacoes",
+    "status": "status_reagente",
+    "status_reagente": "status_reagente",
 }
 
 # Aliases aceitos na entrada da API -> nome canônico dos campos no model EstoqueReagente
@@ -145,6 +147,31 @@ def normalizar_etapa_reagente(valor: Any, default: Optional[EtapaReagente] = Non
 
     return normalizar_enum(EtapaReagente, valor, default=default)
 
+def normalizar_status_reagente(valor: Any, default: Optional[StatusReagente] = StatusReagente.DISPONIVEL) -> Optional[StatusReagente]:
+    """
+    Normaliza variações textuais para o Enum canônico StatusReagente.
+    Status suportados: 'Disponível', 'Vencido', 'Reservado', 'Esgotado'.
+    Trata 'usado' como sinônimo mapeado para 'Esgotado'.
+    """
+    if valor is None or eh_nao_informado(valor):
+        return default
+    if isinstance(valor, StatusReagente):
+        return valor
+
+    s = str(valor).strip().lower()
+    mapa = {
+        "disponivel": StatusReagente.DISPONIVEL,
+        "disponível": StatusReagente.DISPONIVEL,
+        "vencido": StatusReagente.VENCIDO,
+        "reservado": StatusReagente.RESERVADO,
+        "esgotado": StatusReagente.ESGOTADO,
+        "usado": StatusReagente.ESGOTADO,
+    }
+    if s in mapa:
+        return mapa[s]
+
+    return normalizar_enum(StatusReagente, valor, default=default)
+
 def normalizar_quantidade_unidade(valor: Any, default: int = 1) -> int:
     """Valida e normaliza a quantidade de unidades de reagente (deve ser >= 1)."""
     if valor is None or eh_nao_informado(valor):
@@ -183,24 +210,169 @@ def validar_lotes_unicos(lotes: List[Any]) -> None:
     if len(numeros_lotes) != len(set(numeros_lotes)):
         raise ValueError("Não pode haver números de lote repetidos para o mesmo reagente.")
 
-def calcular_vencimento(lote_ou_data: Union[Any, date, str]) -> tuple[bool, int]:
+def calcular_vencimento(
+    lote_ou_data: Union[Any, date, str],
+    data_referencia: Optional[date] = None,
+) -> tuple[bool, int]:
     """
     Calcula os indicadores de vencimento para um lote de reagente ou data:
     Retorna (esta_vencido: bool, dias_para_vencer: int).
     """
-    if isinstance(lote_ou_data, date):
+    if isinstance(lote_ou_data, datetime):
+        dt_validade = lote_ou_data.date()
+    elif isinstance(lote_ou_data, date):
         dt_validade = lote_ou_data
     elif hasattr(lote_ou_data, "data_validade"):
-        dt_validade = lote_ou_data.data_validade
+        val = lote_ou_data.data_validade
+        if isinstance(val, datetime):
+            dt_validade = val.date()
+        elif isinstance(val, date):
+            dt_validade = val
+        elif isinstance(val, str):
+            dt_validade = date.fromisoformat(val.strip())
+        else:
+            raise ValueError(f"Valor de data_validade inválido: {val}")
     elif isinstance(lote_ou_data, str):
-        dt_validade = date.fromisoformat(lote_ou_data)
+        s = lote_ou_data.strip()
+        try:
+            dt_validade = date.fromisoformat(s)
+        except ValueError:
+            for fmt in ("%d/%m/%Y", "%m/%d/%Y", "%Y/%m/%d"):
+                try:
+                    dt_validade = datetime.strptime(s, fmt).date()
+                    break
+                except ValueError:
+                    pass
+            else:
+                raise ValueError(f"Formato de data de validade inválido: '{lote_ou_data}'.")
     else:
         raise ValueError("O parâmetro deve ser uma instância de Reagente ou um objeto date/str.")
 
-    hoje = date.today()
+    hoje = data_referencia or date.today()
     esta_vencido = dt_validade < hoje
     dias_para_vencer = (dt_validade - hoje).days
     return esta_vencido, dias_para_vencer
+
+def classificar_lotes_alertas(
+    lotes: List[Any],
+    limite_baixo_estoque: int = 2,
+    dias_vencimento: int = 30,
+    data_referencia: Optional[date] = None,
+) -> Dict[str, Any]:
+    """
+    Avalia e classifica os lotes físicos de um reagente para a emissão de alertas de estoque.
+
+    Categoriza os lotes em:
+    - lotes_vencidos: lotes com data de validade expirada (dias_para_vencer < 0);
+    - lotes_proximos_vencimento: lotes que expiram no intervalo [0, dias_vencimento];
+    - lotes_regulares: lotes com validade superior a dias_vencimento.
+
+    Consolida as métricas globais do reagente:
+    - quantidade_total_unidades: soma total de frascos/unidades físicas;
+    - baixo_estoque_global: True se quantidade_total_unidades <= limite_baixo_estoque;
+    - tem_lotes_vencidos: True se houver ao menos um lote vencido;
+    - tem_lotes_vencendo: True se houver ao menos um lote próximo do vencimento;
+    - tem_alerta: True se qualquer uma das condições de alerta for atendida.
+    """
+    lotes_vencidos: List[Any] = []
+    lotes_proximos: List[Any] = []
+    lotes_regulares: List[Any] = []
+    qtd_total_unidades = 0
+
+    for lote in lotes:
+        is_dict = isinstance(lote, dict)
+        raw_qtd = lote.get("quantidade_unidade", 1) if is_dict else getattr(lote, "quantidade_unidade", 1)
+        qtd_un = normalizar_quantidade_unidade(raw_qtd)
+        qtd_total_unidades += qtd_un
+
+        dt_val = lote.get("data_validade") if is_dict else getattr(lote, "data_validade", None)
+        if dt_val:
+            vencido, dias = calcular_vencimento(dt_val, data_referencia=data_referencia)
+            if is_dict:
+                lote["esta_vencido"] = vencido
+                lote["dias_para_vencer"] = dias
+            else:
+                setattr(lote, "esta_vencido", vencido)
+                setattr(lote, "dias_para_vencer", dias)
+
+            if dias < 0:
+                lotes_vencidos.append(lote)
+            elif 0 <= dias <= dias_vencimento:
+                lotes_proximos.append(lote)
+            else:
+                lotes_regulares.append(lote)
+        else:
+            lotes_regulares.append(lote)
+
+    # Ordena lotes por data de validade ascendente (mais próximos de expirar primeiro)
+    def _chave_validade(item: Any) -> date:
+        val = item.get("data_validade") if isinstance(item, dict) else getattr(item, "data_validade", None)
+        if isinstance(val, datetime):
+            return val.date()
+        if isinstance(val, date):
+            return val
+        if isinstance(val, str):
+            try:
+                return date.fromisoformat(val.strip())
+            except Exception:
+                return date.max
+        return date.max
+
+    lotes_vencidos.sort(key=_chave_validade)
+    lotes_proximos.sort(key=_chave_validade)
+    lotes_regulares.sort(key=_chave_validade)
+
+    baixo_estoque_global = qtd_total_unidades <= limite_baixo_estoque
+    tem_lotes_vencidos = len(lotes_vencidos) > 0
+    tem_lotes_vencendo = len(lotes_proximos) > 0
+    tem_alerta = baixo_estoque_global or tem_lotes_vencidos or tem_lotes_vencendo
+
+    return {
+        "quantidade_total_unidades": qtd_total_unidades,
+        "baixo_estoque_global": baixo_estoque_global,
+        "tem_lotes_vencidos": tem_lotes_vencidos,
+        "tem_lotes_vencendo": tem_lotes_vencendo,
+        "tem_alerta": tem_alerta,
+        "lotes_vencidos": lotes_vencidos,
+        "lotes_proximos_vencimento": lotes_proximos,
+        "lotes_regulares": lotes_regulares,
+    }
+
+def processar_alerta_reagente(
+    reagente_nome: str,
+    lotes: List[Any],
+    reagente_codigo: Optional[str] = None,
+    quantidade_total_volume: Optional[float] = None,
+    resumo_estoque: Optional[str] = None,
+    limite_baixo_estoque: int = 2,
+    dias_vencimento: int = 30,
+    data_referencia: Optional[date] = None,
+) -> Dict[str, Any]:
+    """
+    Processa o estado de alerta de um reagente como um todo, agrupando métricas consolidadas
+    e a discriminação de seus lotes (vencidos, a vencer e regulares).
+    """
+    classificacao = classificar_lotes_alertas(
+        lotes=lotes,
+        limite_baixo_estoque=limite_baixo_estoque,
+        dias_vencimento=dias_vencimento,
+        data_referencia=data_referencia,
+    )
+
+    return {
+        "reagente_nome": reagente_nome,
+        "reagente_codigo": reagente_codigo,
+        "quantidade_total_unidades": classificacao["quantidade_total_unidades"],
+        "quantidade_total_volume": quantidade_total_volume,
+        "resumo_estoque": resumo_estoque,
+        "baixo_estoque_global": classificacao["baixo_estoque_global"],
+        "tem_lotes_vencidos": classificacao["tem_lotes_vencidos"],
+        "tem_lotes_vencendo": classificacao["tem_lotes_vencendo"],
+        "tem_alerta": classificacao["tem_alerta"],
+        "lotes_vencidos": classificacao["lotes_vencidos"],
+        "lotes_proximos_vencimento": classificacao["lotes_proximos_vencimento"],
+        "lotes_regulares": classificacao["lotes_regulares"],
+    }
 
 def calcular_metricas_estoque(
     lotes: List[Any],

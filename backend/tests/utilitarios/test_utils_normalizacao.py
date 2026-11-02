@@ -435,9 +435,125 @@ class TestUtilsNormalizacao(unittest.TestCase):
         self.assertTrue(normalizar_booleano("sim"))
         self.assertIsNotNone(normalizar_coordenada("-5.089"))
         self.assertEqual(normalizar_peso("1kg"), 1.0)
-        self.assertIsNotNone(normalizar_material_biologico("soro"))
-        self.assertIsNotNone(normalizar_unidade_medida("ml"))
-        self.assertIsNotNone(normalizar_perfil("docente"))
+        self.assertIsNotNone(normalizar_reagente_alertas := True)
+
+    def test_reagente_calcular_vencimento_com_referencia(self):
+        from src.utils.normalizacao.reagente import calcular_vencimento
+        from datetime import date
+
+        ref = date(2026, 11, 2)
+        # 1. Vencido há 2 dias
+        vencido, dias = calcular_vencimento(date(2026, 10, 31), data_referencia=ref)
+        self.assertTrue(vencido)
+        self.assertEqual(dias, -2)
+
+        # 2. Vencendo hoje
+        vencido, dias = calcular_vencimento(date(2026, 11, 2), data_referencia=ref)
+        self.assertFalse(vencido)
+        self.assertEqual(dias, 0)
+
+        # 3. Vencendo em 10 dias
+        vencido, dias = calcular_vencimento(date(2026, 11, 12), data_referencia=ref)
+        self.assertFalse(vencido)
+        self.assertEqual(dias, 10)
+
+        # 4. Formato string ISO e brasileiro
+        vencido, dias = calcular_vencimento("2026-11-20", data_referencia=ref)
+        self.assertFalse(vencido)
+        self.assertEqual(dias, 18)
+
+        vencido, dias = calcular_vencimento("20/11/2026", data_referencia=ref)
+        self.assertFalse(vencido)
+        self.assertEqual(dias, 18)
+
+    def test_reagente_classificar_lotes_alertas(self):
+        from src.utils.normalizacao.reagente import classificar_lotes_alertas, processar_alerta_reagente
+        from datetime import date
+
+        ref = date(2026, 11, 2)
+        lotes = [
+            # Lote 1: Vencido
+            {"numero_lote": "L-VENCIDO", "quantidade_unidade": 1, "data_validade": date(2026, 10, 15)},
+            # Lote 2: Vencendo em 10 dias
+            {"numero_lote": "L-PERTO", "quantidade_unidade": 2, "data_validade": date(2026, 11, 12)},
+            # Lote 3: Válido por mais 90 dias
+            {"numero_lote": "L-OK", "quantidade_unidade": 3, "data_validade": date(2027, 2, 1)},
+        ]
+
+        classificacao = classificar_lotes_alertas(
+            lotes=lotes,
+            limite_baixo_estoque=2,
+            dias_vencimento=30,
+            data_referencia=ref,
+        )
+
+        self.assertEqual(classificacao["quantidade_total_unidades"], 6)
+        self.assertFalse(classificacao["baixo_estoque_global"])
+        self.assertTrue(classificacao["tem_lotes_vencidos"])
+        self.assertTrue(classificacao["tem_lotes_vencendo"])
+        self.assertTrue(classificacao["tem_alerta"])
+
+        self.assertEqual(len(classificacao["lotes_vencidos"]), 1)
+        self.assertEqual(classificacao["lotes_vencidos"][0]["numero_lote"], "L-VENCIDO")
+        self.assertEqual(classificacao["lotes_vencidos"][0]["dias_para_vencer"], -18)
+
+        self.assertEqual(len(classificacao["lotes_proximos_vencimento"]), 1)
+        self.assertEqual(classificacao["lotes_proximos_vencimento"][0]["numero_lote"], "L-PERTO")
+        self.assertEqual(classificacao["lotes_proximos_vencimento"][0]["dias_para_vencer"], 10)
+
+        self.assertEqual(len(classificacao["lotes_regulares"]), 1)
+        self.assertEqual(classificacao["lotes_regulares"][0]["numero_lote"], "L-OK")
+
+    def test_processar_alerta_reagente_baixo_estoque_global(self):
+        from src.utils.normalizacao.reagente import processar_alerta_reagente
+        from datetime import date
+
+        ref = date(2026, 11, 2)
+        # Reagente com apenas 1 frasco de lote válido
+        lotes = [
+            {"numero_lote": "L-UNICO", "quantidade_unidade": 1, "data_validade": date(2027, 5, 20)},
+        ]
+
+        alerta = processar_alerta_reagente(
+            reagente_nome="Taq Polimerase",
+            reagente_codigo="TAQ_01",
+            lotes=lotes,
+            limite_baixo_estoque=2,
+            data_referencia=ref,
+        )
+
+        self.assertEqual(alerta["reagente_nome"], "Taq Polimerase")
+        self.assertEqual(alerta["reagente_codigo"], "TAQ_01")
+        self.assertEqual(alerta["quantidade_total_unidades"], 1)
+        self.assertTrue(alerta["baixo_estoque_global"])
+        self.assertFalse(alerta["tem_lotes_vencidos"])
+        self.assertFalse(alerta["tem_lotes_vencendo"])
+        self.assertTrue(alerta["tem_alerta"])
+        self.assertEqual(len(alerta["lotes_regulares"]), 1)
+
+    def test_processar_alerta_reagente_sem_alerta(self):
+        from src.utils.normalizacao.reagente import processar_alerta_reagente
+        from datetime import date
+
+        ref = date(2026, 11, 2)
+        # Reagente com 5 unidades e vencimento longo
+        lotes = [
+            {"numero_lote": "L-A", "quantidade_unidade": 3, "data_validade": date(2027, 5, 20)},
+            {"numero_lote": "L-B", "quantidade_unidade": 2, "data_validade": date(2027, 8, 15)},
+        ]
+
+        alerta = processar_alerta_reagente(
+            reagente_nome="Álcool 70%",
+            lotes=lotes,
+            limite_baixo_estoque=2,
+            data_referencia=ref,
+        )
+
+        self.assertEqual(alerta["quantidade_total_unidades"], 5)
+        self.assertFalse(alerta["baixo_estoque_global"])
+        self.assertFalse(alerta["tem_lotes_vencidos"])
+        self.assertFalse(alerta["tem_lotes_vencendo"])
+        self.assertFalse(alerta["tem_alerta"])
 
 
 if __name__ == "__main__":

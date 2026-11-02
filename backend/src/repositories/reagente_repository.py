@@ -2,6 +2,7 @@ import re
 from typing import Optional, List, Dict, Union, Any
 from datetime import date, datetime
 from src.models.Reagente import Reagente
+from src.models.Reagente.enums.StatusReagente import StatusReagente
 from src.utils.repositorio import (
     _normalizar,
     gerar_proximo_id_mongo,
@@ -15,7 +16,7 @@ class ReagenteRepository:
     Responsabilidade exclusiva:
     - Armazenar, consultar, filtrar, atualizar e remover lotes de reagentes no MongoDB (com cache indexado).
     - Atuar como camada de acesso a dados (DAO/Persistência).
-    - Suporta indexação O(1) por ID numérico, reagente_id (_id), código, nome, lote, marca e local.
+    - Suporta indexação O(1) por ID numérico, reagente_id (_id), código, nome, lote, marca, local e status.
     - NÃO contém regras de negócio de consolidação dimensional ou ações temporais.
     """
     COLLECTION_NAME = "reagentes"
@@ -33,6 +34,7 @@ class ReagenteRepository:
         self._por_lote: Dict[str, List[Reagente]] = {}
         self._por_marca: Dict[str, List[Reagente]] = {}
         self._por_local: Dict[str, List[Reagente]] = {}
+        self._por_status: Dict[str, List[Reagente]] = {}
         self._proximo_id: int = 1
         self._db = db
         self._use_mongo = True if db is not None else use_mongo
@@ -74,6 +76,14 @@ class ReagenteRepository:
                     break
                 except ValueError:
                     pass
+
+        st = d.get("status_reagente") or d.get("status")
+        if st:
+            try:
+                from src.utils.normalizacao import normalizar_status_reagente
+                d["status_reagente"] = normalizar_status_reagente(st)
+            except Exception:
+                pass
 
         return Reagente(**d)
 
@@ -132,6 +142,12 @@ class ReagenteRepository:
         if chave_local:
             self._por_local.setdefault(chave_local, []).append(reagente)
 
+        if hasattr(reagente, "status_reagente") and reagente.status_reagente:
+            val_st = reagente.status_reagente.value if hasattr(reagente.status_reagente, "value") else str(reagente.status_reagente)
+            chave_st = _normalizar(val_st)
+            if chave_st:
+                self._por_status.setdefault(chave_st, []).append(reagente)
+
         if reagente.id is not None and isinstance(reagente.id, int) and reagente.id >= self._proximo_id:
             self._proximo_id = reagente.id + 1
 
@@ -162,6 +178,12 @@ class ReagenteRepository:
         chave_local = _normalizar(reagente.reagente_local_armazenamento)
         if chave_local in self._por_local and reagente in self._por_local[chave_local]:
             self._por_local[chave_local].remove(reagente)
+
+        if hasattr(reagente, "status_reagente") and reagente.status_reagente:
+            val_st = reagente.status_reagente.value if hasattr(reagente.status_reagente, "value") else str(reagente.status_reagente)
+            chave_st = _normalizar(val_st)
+            if chave_st in self._por_status and reagente in self._por_status[chave_st]:
+                self._por_status[chave_st].remove(reagente)
 
     # -------------------------------------------------------------------------
     # OPERAÇÕES DE CRUD:
@@ -386,6 +408,7 @@ class ReagenteRepository:
         codigo: Optional[str] = None,
         marca: Optional[str] = None,
         local_armazenamento: Optional[str] = None,
+        status: Optional[Union[StatusReagente, str]] = None,
         apenas_vencidos: Optional[bool] = None,
         termo_busca: Optional[str] = None,
         ordenar_por: str = "id",
@@ -410,6 +433,13 @@ class ReagenteRepository:
         if local_armazenamento:
             chave_loc = _normalizar(local_armazenamento)
             resultado_lista = [r for r in resultado_lista if _normalizar(r.reagente_local_armazenamento) == chave_loc]
+
+        if status:
+            chave_st = _normalizar(status.value if hasattr(status, "value") else str(status))
+            resultado_lista = [
+                r for r in resultado_lista
+                if hasattr(r, "status_reagente") and r.status_reagente and _normalizar(r.status_reagente.value if hasattr(r.status_reagente, "value") else str(r.status_reagente)) == chave_st
+            ]
 
         if apenas_vencidos is not None:
             hoje = date.today()
@@ -483,6 +513,7 @@ class ReagenteRepository:
         self._por_lote.clear()
         self._por_marca.clear()
         self._por_local.clear()
+        self._por_status.clear()
         self._proximo_id = 1
 
 reagente_repository = ReagenteRepository(use_mongo=True)

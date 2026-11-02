@@ -15,7 +15,9 @@ from src.services.reagente_service import (
     ReagenteCreate,
     ReagenteUpdate,
     ReagenteDetails,
+    StatusReagente,
 )
+from src.models.EstoqueReagente import EstoqueAlertasResponse
 
 router = criar_router(prefix="/reagente", tags=["Reagente"])
 
@@ -46,13 +48,14 @@ def criar_reagente(
     response_model=List[Reagente],
     responses=RESPOSTAS_LISTAR,
     summary="Listar lotes de reagentes",
-    description="Retorna a listagem de lotes físicos cadastrados com suporte a filtros por nome, código, marca, local de armazenamento, vencimento, busca textual e paginação.",
+    description="Retorna a listagem de lotes físicos cadastrados com suporte a filtros por nome, código, marca, local de armazenamento, status, vencimento, busca textual e paginação.",
 )
 def listar_reagentes(
     nome: Optional[str] = Query(None, description="Filtrar por nome do reagente"),
     codigo: Optional[str] = Query(None, description="Filtrar por código do reagente"),
     marca: Optional[str] = Query(None, description="Filtrar por fabricante ou marca"),
     local_armazenamento: Optional[str] = Query(None, description="Filtrar por local de armazenamento"),
+    status: Optional[StatusReagente] = Query(None, description="Filtrar por status do lote (Disponível, Vencido, Reservado, Esgotado)"),
     apenas_vencidos: Optional[bool] = Query(None, description="Filtrar apenas lotes com prazo de validade expirado"),
     termo_busca: Optional[str] = Query(None, description="Busca textual por código, nome, lote, marca ou observações"),
     ordenar_por: str = Query("id", description="Critério de ordenação ('id', 'nome', 'validade')"),
@@ -64,6 +67,7 @@ def listar_reagentes(
         codigo=codigo,
         marca=marca,
         local_armazenamento=local_armazenamento,
+        status=status,
         apenas_vencidos=apenas_vencidos,
         termo_busca=termo_busca,
         ordenar_por=ordenar_por,
@@ -89,6 +93,23 @@ def contar_reagentes():
 )
 def listar_reagentes_por_lote(numero_lote: str):
     return reagente_service.listar_por_lote(numero_lote=numero_lote)
+
+@router.get(
+    "/alertas",
+    response_model=EstoqueAlertasResponse,
+    responses=RESPOSTAS_OBTER,
+    summary="Obter alertas consolidados de reagentes (alias)",
+    description="Retorna visão agregada de reagentes com baixo estoque global (<= 2 unidades) e detalhamento de lotes vencidos ou próximos do vencimento.",
+)
+def obter_alertas_reagente(
+    limite_baixo_estoque: int = Query(2, ge=0, description="Limite máximo de unidades para considerar baixo estoque"),
+    dias_vencimento: int = Query(30, ge=1, le=365, description="Janela em dias para alertas de vencimento próximo"),
+):
+    from src.services.estoque_reagente_service import estoque_reagente_service
+    return estoque_reagente_service.obter_alertas_estoque(
+        limite_baixo_estoque=limite_baixo_estoque,
+        dias_vencimento=dias_vencimento,
+    )
 
 @router.get(
     "/{identificador}",

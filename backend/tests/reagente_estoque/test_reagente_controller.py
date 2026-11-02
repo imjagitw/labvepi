@@ -19,7 +19,7 @@ class TestReagenteEEstoqueControllers(unittest.TestCase):
         self.assertEqual(res_count_r.status_code, 200)
         self.assertIn("total", res_count_r.json())
 
-        res_count_e = self.client.get("/estoque_reagente/contagem")
+        res_count_e = self.client.get("/estoque/contagem")
         self.assertEqual(res_count_e.status_code, 200)
         self.assertIn("total", res_count_e.json())
 
@@ -77,7 +77,7 @@ class TestReagenteEEstoqueControllers(unittest.TestCase):
         self.assertEqual(res_put.json()["quantidade_unidade"], 3)
 
         # 7. Consultar EstoqueReagente criado/sincronizado automaticamente
-        res_est = self.client.get("/estoque_reagente/Taq DNA Polimerase")
+        res_est = self.client.get("/estoque/Taq DNA Polimerase")
         self.assertEqual(res_est.status_code, 200)
         est_data = res_est.json()
         nome_est = est_data.get("nome") or est_data.get("reagente_nome")
@@ -87,16 +87,16 @@ class TestReagenteEEstoqueControllers(unittest.TestCase):
         self.assertEqual(est_data["totais_convertidos_base"]["ml"], 1.5)
 
         # 8. Detalhes do estoque
-        res_est_det = self.client.get(f"/estoque_reagente/{id_est}/detalhes")
+        res_est_det = self.client.get(f"/estoque/{id_est}/detalhes")
         self.assertEqual(res_est_det.status_code, 200)
         self.assertGreaterEqual(len(res_est_det.json()["lotes"]), 1)
 
         # 9. Listar estoques e recalcular
-        res_est_list = self.client.get("/estoque_reagente/?termo_busca=Taq")
+        res_est_list = self.client.get("/estoque/?termo_busca=Taq")
         self.assertEqual(res_est_list.status_code, 200)
         self.assertGreaterEqual(len(res_est_list.json()), 1)
 
-        res_recalc = self.client.post("/estoque_reagente/recalcular")
+        res_recalc = self.client.post("/estoque/recalcular")
         self.assertEqual(res_recalc.status_code, 200)
         self.assertIn("reagentes_atualizados", res_recalc.json())
 
@@ -105,7 +105,7 @@ class TestReagenteEEstoqueControllers(unittest.TestCase):
         self.assertEqual(res_del_r.status_code, 204)
 
         # 11. Deletar Estoque
-        res_del_e = self.client.delete(f"/estoque_reagente/{id_est}")
+        res_del_e = self.client.delete(f"/estoque/{id_est}")
         self.assertEqual(res_del_e.status_code, 204)
 
 

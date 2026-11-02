@@ -163,7 +163,8 @@ A camada de backend provê os serviços centrais de processamento, integridade b
   - `Animal`: Rastreamento epidemiológico, biometria com conversão de peso e dedução de faixa etária;
   - `Amostra`: Gestão de matrizes biológicas normalizadas, acondicionamento e biobancos;
   - `Exame`: Ensaios diagnósticos e patógenos prioritários;
-  - `Reagente` & `EstoqueReagente`: Gestão de insumos, frascos e consolidação volumétrica de estoque.
+  - `Reagente` & `EstoqueReagente`: Gestão de lotes de insumos (`Reagente`) com ciclo de vida estrito via `StatusReagente` (`Disponível`, `Vencido`, `Reservado`, `Esgotado`), atualização automática para `Vencido` ao expirar (exceto se `Esgotado`), transições mútuas protegidas entre `Esgotado` e `Vencido`, consolidação dimensional contínua (`EstoqueReagente`) e endpoint dedicado de alertas de estoque consolidado (`GET /estoque/alertas` e alias `/reagente/alertas`).
+- **Segurança, CORS e Conectividade**: Middleware de CORS configurado no FastAPI autorizando a aplicação Web hospedada na VM da UFPI, o aplicativo móvel (`capacitor://`, `ionic://`) e ambientes locais de desenvolvimento.
 - **Regras de Negócio e Integridade**: Resolução cruzada de espécies, bloqueio estrito de exclusão caso existam dependentes (animais com amostras vinculadas ou amostras com exames), tolerância a campos não aferidos (`"Não informado"`) e matriz de permissões (RBAC).
 - **Contratos e Testes Automatizados**: Documentação interativa via OpenAPI/Swagger (`/docs`) e suíte de testes com `unittest` e `TestClient`.
 
@@ -178,12 +179,15 @@ A camada de frontend é uma aplicação web científica construída com **Stream
 
 ### Destaques Funcionais do Frontend:
 - **Navegação Multipágina e Layout**: Roteamento moderno nativo com `st.navigation` e `st.Page`, cabeçalho institucional oficial (`logo.png`) e identificação de usuário logado.
-- **Central de Alertas em Tempo Real (Sidebar)**: Monitoramento proativo contínuo no estoque de insumos, alertando lotes em baixo estoque ($\le 2$ unidades), reagentes próximos da data de expiração (nos próximos 30 dias) e itens vencidos.
+- **Central de Alertas em Tempo Real (Sidebar)**: Monitoramento proativo contínuo no estoque de insumos alimentado via requisições HTTP RESTful ao endpoint `GET /estoque/alertas` (com cache `@st.cache_data(ttl=60)`), sem consultas diretas ao MongoDB. Apresenta visão hierárquica por reagente:
+  - ⚠️ **Baixo Estoque Global**: Identifica reagentes cujo saldo total somado de todos os lotes é $\le 2$ unidades;
+  - 🚨 **Lotes Vencidos**: Lista destacada dos lotes do reagente com validade expirada;
+  - ⏳ **Lotes a Vencer em até 30 Dias**: Exibe contagem regressiva em dias para priorizar o uso no laboratório (regra PEPS/FIFO).
 - **Formulários Modulares de Cadastro (`forms/`)**:
   - *Animais*: Resolução taxonômica automática, conversão de peso, cálculo de faixa etária e diálogo modal estruturado de revisão (`@st.dialog`);
   - *Amostras*: Vínculo reativo com animais existentes, tipo de matriz biológica, conservação e alíquotas de DNA/RNA;
   - *Exames*: Ensaios (`PCR`, sorologias), patógenos investigados e kits laboratoriais;
-  - *Reagentes*: Lotes, fabricantes e validação impeditiva contra validades expiradas.
+  - *Reagentes*: Lotes, fabricantes, validação impeditiva contra validades expiradas e status canônico (`Disponível`, `Vencido`, `Reservado`, `Esgotado`).
 - **Páginas Operacionais e Analíticas (`pages/`)**:
   - *Novo Registro*: Hub unificado em abas para os formulários de cadastro;
   - *Editar Amostra*: Gestão de status de alíquotas (`Disponível`, `Em uso`, `Esgotada`, etc.), restrita a docentes;

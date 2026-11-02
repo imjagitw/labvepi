@@ -16,8 +16,9 @@ from src.services.estoque_reagente_service import (
     EstoqueReagenteUpdate,
     EstoqueReagenteDetails,
 )
+from src.models.EstoqueReagente import EstoqueAlertasResponse
 
-router = criar_router(prefix="/estoque_reagente", tags=["EstoqueReagente"])
+router = criar_router(prefix="/estoque", tags=["Estoque"])
 
 @router.post(
     "/",
@@ -104,6 +105,22 @@ def sincronizar_estoque(nome_reagente: str):
 )
 def obter_estoque_por_codigo(codigo: str):
     return estoque_reagente_service.obter_estoque_por_codigo(codigo=codigo)
+
+@router.get(
+    "/alertas",
+    response_model=EstoqueAlertasResponse,
+    responses=RESPOSTAS_OBTER,
+    summary="Obter alertas consolidados de estoque e lotes de reagentes",
+    description="Retorna visão agregada de reagentes com baixo estoque global (<= 2 unidades) e detalhamento de lotes vencidos ou próximos do vencimento.",
+)
+def obter_alertas_estoque(
+    limite_baixo_estoque: int = Query(2, ge=0, description="Limite máximo de unidades para considerar baixo estoque"),
+    dias_vencimento: int = Query(30, ge=1, le=365, description="Janela em dias para alertas de vencimento próximo"),
+):
+    return estoque_reagente_service.obter_alertas_estoque(
+        limite_baixo_estoque=limite_baixo_estoque,
+        dias_vencimento=dias_vencimento,
+    )
 
 @router.get(
     "/{identificador}",

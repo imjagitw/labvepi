@@ -2,7 +2,7 @@ from datetime import date
 from enum import Enum
 from typing import Optional
 from pydantic import BaseModel, ConfigDict, Field
-from src.models.Reagente import EtapaReagente, UnidadeMedida
+from src.models.Reagente import EtapaReagente, UnidadeMedida, StatusReagente
 
 class Reagente(BaseModel):
     """
@@ -21,6 +21,11 @@ class Reagente(BaseModel):
     data_validade: date = Field(..., description="Data de validade do lote")
     quantidade_unidade: int = Field(default=1, alias="quantidade_unidade", description="Quantidade de frascos/unidades")
     reagente_local_armazenamento: str = Field(..., alias="local_armazenamento", description="Local físico de armazenamento")
+    status_reagente: StatusReagente = Field(
+        default=StatusReagente.DISPONIVEL,
+        alias="status",
+        description="Status do reagente (Disponível, Vencido, Reservado, Esgotado)",
+    )
     
     # Opcionais
     reagente_id: Optional[str] = Field(default=None, description="Identificador único padrão do laboratório")

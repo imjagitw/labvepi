@@ -4,7 +4,7 @@ from pathlib import Path
 from datetime import date
 from pydantic import ValidationError
 # Garante import do backend/src
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 from src.models.Amostra import (
     Amostra,
     AmostraCreate,
@@ -22,8 +22,6 @@ from src.repositories.especie_repository import EspecieRepository
 from src.services.especie_service import EspecieService
 from src.services.animal_service import AnimalService
 from src.services.amostra_service import AmostraService
-from fastapi.testclient import TestClient
-from src.main import app
 
 class TestAmostraService(unittest.TestCase):
     def setUp(self):
@@ -215,68 +213,6 @@ class TestAmostraService(unittest.TestCase):
         self.assertEqual(detalhes_parc.nome_coletor, "Não informado")
         self.assertEqual(detalhes_parc.condicao_armazenamento, "Não informado")
         self.assertEqual(detalhes_parc.caixa_armazenamento, "Não informado")
-
-class TestAmostraController(unittest.TestCase):
-    def setUp(self):
-        self.client = TestClient(app)
-        self.client.delete("/amostra/API_AMS01")
-
-    def test_fluxo_api_amostras(self):
-        """Testa requisições HTTP RESTful no endpoint /amostra/."""
-        # 1. Cadastro de amostra estrita via API
-        payload = {
-            "amostra_id": "API_AMS01",
-            "animal": "AN001",
-            "data_coleta": "2026-10-17",
-            "material_biologico": "Soro",
-            "kit_utilizado": "QIAamp Viral RNA Mini Kit",
-            "status_amostra": "Disponível",
-            "laudo_liberado": False,
-            "local_coleta": "Teresina",
-            "nome_coletor": "Dr. Coletor",
-            "condicao_armazenamento": "Congelada",
-            "fase_amostra": "Extração",
-            "destino_amostra": "Biobanco UFPI",
-            "caixa": "Caixa 01",
-            "dna_disponivel": True,
-            "rna_disponivel": False,
-            "sequenciamento": False,
-            "confirmar_novo_animal": True,
-        }
-        res_post = self.client.post("/amostra/", json=payload)
-        self.assertEqual(res_post.status_code, 201)
-
-        data = res_post.json()
-        self.assertEqual(data["amostra_id"], "API_AMS01")
-
-        # 2. Obter por ID
-        res_get = self.client.get("/amostra/API_AMS01")
-        self.assertEqual(res_get.status_code, 200)
-
-        # 3. Obter detalhes
-        res_det = self.client.get("/amostra/API_AMS01/detalhes")
-        self.assertEqual(res_det.status_code, 200)
-        self.assertEqual(res_det.json()["amostra_id"], "API_AMS01")
-        self.assertEqual(res_det.json()["_id"], data.get("_id") or data.get("id"))
-
-        # 4. Listar
-        res_list = self.client.get("/amostra/")
-        self.assertEqual(res_list.status_code, 200)
-        self.assertIsInstance(res_list.json(), list)
-
-        # 5. Contagem
-        res_count = self.client.get("/amostra/contagem")
-        self.assertEqual(res_count.status_code, 200)
-        self.assertIn("total", res_count.json())
-
-        # 6. Atualização
-        res_patch = self.client.patch("/amostra/API_AMS01", json={"observacoes": "Atualizado via API"})
-        self.assertEqual(res_patch.status_code, 200)
-
-        # 7. Exclusão
-        res_del = self.client.delete("/amostra/API_AMS01")
-        self.assertEqual(res_del.status_code, 204)
-
 
 if __name__ == "__main__":
     unittest.main()

@@ -515,7 +515,7 @@ class UsuarioService:
         # Validação estrita do status da conta
         status_atual = usuario.status or StatusUsuario.PENDENTE
         if status_atual == StatusUsuario.PENDENTE:
-            raise PermissionError("Conta de usuário aguardando aprovação por um docente/administrador.")
+            raise PermissionError("Conta de usuário pendente de aprovação por um docente/administrador.")
         elif status_atual == StatusUsuario.INATIVO:
             raise PermissionError("Conta de usuário inativa. Entre em contato com a coordenação do laboratório.")
         elif status_atual == StatusUsuario.BLOQUEADO:

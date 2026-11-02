@@ -117,11 +117,16 @@ nav = st.navigation({
 Em todas as execuções, `app.py` renderiza o cabeçalho oficial do laboratório, incluindo a logomarca oficial (`logo.png`), o título institucional, a identificação do usuário logado e o botão de encerramento de sessão (*Logout*).
 
 ### 4.3. Central de Alertas em Tempo Real (Sidebar)
-Um componente permanente na barra lateral (`Sistema de Alertas`) realiza varreduras em tempo de execução no estoque de reagentes:
-- ⚠️ **Baixo Estoque**: Alerta lotes com saldo $\le 2$ unidades;
-- ⚠️ **Vencendo em Breve**: Identifica produtos que expiram nos próximos 30 dias;
-- 🚨 **Vencidos**: Destaca lotes com validade ultrapassada;
-- Botão de atalho para redirecionamento imediato para a página `Registros.py` com filtros correspondentes aplicados.
+Um componente permanente na barra lateral (`Sistema de Alertas`) realiza o monitoramento proativo contínuo do inventário de insumos. A arquitetura foi desacoplada de acessos diretos ao MongoDB (`db['reagentes'].find()`) e opera via consumo HTTP do endpoint RESTful centralizado:
+- **Origem dos Dados**: Requisição HTTP `GET {BACKEND_URL}/estoque/alertas` (com fallback automático para `/reagente/alertas`);
+- **Cache Otimizado**: Utiliza o decorator `@st.cache_data(ttl=60)` para evitar requisições redundantes a cada interação na tela do Streamlit;
+- **Apresentação Visual Hierárquica por Reagente**:
+  - Exibe cada reagente que possui ao menos um alerta em um bloco dedicado (`Nome do Reagente + Resumo de Frascos e Volume`);
+  - ⚠️ **Baixo Estoque Global**: Indicador visual quando a quantidade total de frascos/unidades somadas de todos os lotes é $\le 2$ unidades;
+  - 🚨 **Lotes Vencidos**: Listagem discriminando número de lote, validade ultrapassada e quantidade de frascos comprometidos;
+  - ⏳ **Lotes a Vencer (em até 30 dias)**: Destaque com contagem de dias restantes para priorizar o uso no laboratório segundo a diretriz PEPS/FIFO (*Primeiro que Expira, Primeiro que Sai*);
+  - ✅ **Conformidade Geral**: Caso não existam reagentes com alerta, exibe mensagem informativa amigável (*"Todos os reagentes e lotes estão em conformidade"*);
+- **Atalhos Operacionais**: Botão direto redirecionando o pesquisador para o catálogo geral em `Registros.py` com filtros de vencimento aplicados.
 
 ---
 
@@ -175,8 +180,10 @@ Cada formulário reside em seu próprio módulo, garantindo separação clara de
 
 ### 6.4. Cadastro de Reagentes (`registro_reagente.py`)
 - Registro de lotes individuais com código interno, descrição comercial, fabricante e número de lote;
-- Validação impeditiva contra datas de validade expiradas;
-- Definição de quantidades em frascos/unidades e volume nominal.
+- Validação impeditiva contra datas de validade expiradas na inserção de novos insumos;
+- Seleção de status canônico (`Disponível`, `Vencido`, `Reservado`, `Esgotado`), com bloqueio estrito para não permitir marcar como `Vencido` lotes que ainda não expiraram;
+- Definição de quantidades em frascos/unidades e volume nominal;
+- Sincronização automática em tempo real com a entidade agregada `EstoqueReagente`.
 
 ---
 

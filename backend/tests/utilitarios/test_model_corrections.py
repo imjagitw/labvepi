@@ -138,6 +138,94 @@ class TestModelCorrections(unittest.TestCase):
         self.assertEqual(amsc.material_biologico, MaterialBiologico.SWAB_CLOACAL)
         self.assertEqual(amsc.latitude, -5.09)
 
+    # -------------------------------------------------------------------------
+    # ESTOQUE ALERTAS: Schemas de Alertas de Estoque e Reagentes
+    # -------------------------------------------------------------------------
+    def test_estoque_alertas_schemas(self):
+        from src.models.EstoqueReagente import (
+            ParametrosAlertaEstoque,
+            TotaisAlertasEstoque,
+            ReagenteAlertaItem,
+            EstoqueAlertasResponse,
+        )
+        from src.models.Reagente import ReagenteDetails, UnidadeMedida, StatusReagente
+
+        # 1. Criação de lotes detalhados
+        lote_vencido = ReagenteDetails(
+            codigo="REA_01",
+            nome="Álcool 70%",
+            numero_lote="LOT_01",
+            marca="Química ABC",
+            data_validade=date(2026, 10, 1),
+            quantidade_unidade=1,
+            local_armazenamento="Armário A",
+            unidade_medida=UnidadeMedida.ML,
+            status_reagente=StatusReagente.VENCIDO,
+            esta_vencido=True,
+            dias_para_vencer=-32,
+        )
+
+        lote_regular = ReagenteDetails(
+            codigo="REA_01",
+            nome="Álcool 70%",
+            numero_lote="LOT_02",
+            marca="Química ABC",
+            data_validade=date(2027, 5, 1),
+            quantidade_unidade=2,
+            local_armazenamento="Armário A",
+            unidade_medida=UnidadeMedida.ML,
+            status_reagente=StatusReagente.DISPONIVEL,
+            esta_vencido=False,
+            dias_para_vencer=180,
+        )
+
+        # 2. Item do Reagente com Alerta
+        item = ReagenteAlertaItem(
+            nome="Álcool 70%",
+            codigo="REA_01",
+            quantidade_total_unidades=3,
+            quantidade_total_volume=3000.0,
+            resumo_estoque="3 un | 3000 ml",
+            baixo_estoque_global=False,
+            tem_lotes_vencidos=True,
+            tem_lotes_vencendo=False,
+            tem_alerta=True,
+            lotes_vencidos=[lote_vencido],
+            lotes_proximos_vencimento=[],
+            lotes_regulares=[lote_regular],
+        )
+
+        self.assertEqual(item.reagente_nome, "Álcool 70%")
+        self.assertEqual(item.reagente_codigo, "REA_01")
+        self.assertEqual(len(item.lotes_vencidos), 1)
+        self.assertTrue(item.tem_lotes_vencidos)
+        self.assertTrue(item.tem_alerta)
+
+        # 3. Resposta consolidada completa
+        params = ParametrosAlertaEstoque(limite_baixo_estoque=2, janela_dias_vencimento=30)
+        totais = TotaisAlertasEstoque(
+            total_reagentes_monitorados=10,
+            total_reagentes_com_alerta=1,
+            total_reagentes_baixo_estoque=0,
+            total_reagentes_com_lotes_vencidos=1,
+            total_reagentes_com_lotes_vencendo=0,
+            total_lotes_vencidos=1,
+            total_lotes_vencendo=0,
+        )
+
+        resp = EstoqueAlertasResponse(
+            parametros=params,
+            totais=totais,
+            reagentes_com_alerta=[item],
+        )
+
+        self.assertEqual(resp.totais.total_reagentes_com_alerta, 1)
+        self.assertEqual(resp.reagentes_com_alerta[0].reagente_nome, "Álcool 70%")
+        d = resp.model_dump()
+        self.assertIn("parametros", d)
+        self.assertIn("totais", d)
+        self.assertIn("reagentes_com_alerta", d)
+
 
 if __name__ == "__main__":
     unittest.main()

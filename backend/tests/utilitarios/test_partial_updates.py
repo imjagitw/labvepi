@@ -252,7 +252,7 @@ class TestPartialUpdates(unittest.TestCase):
         self.assertEqual(loc_put, "Geladeira 4C")
 
     def test_estoque_reagente_partial_update_single_field(self):
-        res_create = self.client.post("/estoque_reagente/", json={
+        res_create = self.client.post("/estoque/", json={
             "reagente_nome": "Primer Raiva Forward",
             "reagente_codigo": "PRI-01",
         })
@@ -261,7 +261,7 @@ class TestPartialUpdates(unittest.TestCase):
         est_id = data_c.get("id") or data_c.get("_id")
 
         # Atualiza apenas reagente_codigo via PATCH
-        res_patch = self.client.patch(f"/estoque_reagente/{est_id}", json={"reagente_codigo": "PRI-01-REV"})
+        res_patch = self.client.patch(f"/estoque/{est_id}", json={"reagente_codigo": "PRI-01-REV"})
         self.assertEqual(res_patch.status_code, 200)
         data = res_patch.json()
         cod_val = data.get("codigo") or data.get("reagente_codigo")
@@ -270,7 +270,7 @@ class TestPartialUpdates(unittest.TestCase):
         self.assertEqual(nome_val, "Primer Raiva Forward")
 
         # Atualiza apenas reagente_codigo via PUT
-        res_put = self.client.put(f"/estoque_reagente/{est_id}", json={"reagente_codigo": "PRI-01-FINAL"})
+        res_put = self.client.put(f"/estoque/{est_id}", json={"reagente_codigo": "PRI-01-FINAL"})
         self.assertEqual(res_put.status_code, 200)
         data_put = res_put.json()
         cod_put = data_put.get("codigo") or data_put.get("reagente_codigo")

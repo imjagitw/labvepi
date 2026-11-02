@@ -3,7 +3,7 @@ import sys
 from pathlib import Path
 
 # Garante import do backend/src
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from src.models.Usuario.usuario import Usuario
 from src.models.Usuario.usuario_create import UsuarioCreate

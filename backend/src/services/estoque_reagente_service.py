@@ -1,9 +1,14 @@
+from datetime import date
 from typing import Optional, Union, List, Dict, Any
 from src.models.EstoqueReagente import (
     EstoqueReagente,
     EstoqueReagenteCreate,
     EstoqueReagenteUpdate,
     EstoqueReagenteDetails,
+    ParametrosAlertaEstoque,
+    TotaisAlertasEstoque,
+    ReagenteAlertaItem,
+    EstoqueAlertasResponse,
 )
 from src.models.Reagente import (
     Reagente,
@@ -20,6 +25,8 @@ from src.utils.normalizacao import (
     eh_nao_informado,
     normalizar_chaves_estoque,
     calcular_metricas_estoque,
+    classificar_lotes_alertas,
+    processar_alerta_reagente,
 )
 
 # Rótulos amigáveis para mensagens de erro de validação
@@ -244,6 +251,117 @@ class EstoqueReagenteService:
                 lotes_detalhados.append(lote)
 
         return self.preencher_nao_informados(estoque, lotes_detalhados=lotes_detalhados)
+
+    def obter_alertas_estoque(
+        self,
+        limite_baixo_estoque: int = 2,
+        dias_vencimento: int = 30,
+        data_referencia: Optional[date] = None,
+        usuario: Optional[Any] = None,
+    ) -> EstoqueAlertasResponse:
+        """
+        [READ] Retorna a listagem agregada de reagentes com alertas ativos de estoque
+        (baixo estoque global <= limite ou lotes com validade próxima/expirada).
+        """
+        self._verificar_permissao("obter_alertas_estoque", usuario)
+        data_ref = data_referencia or date.today()
+
+        # 1. Obtém todos os estoques consolidados gerenciados
+        estoques = self.estoque_repo.listar(skip=0, limit=1000)
+
+        # Se não houver estoques consolidados no repositório mas houver lotes em reagentes, consolida em memória
+        if not estoques and self.reagente_repo:
+            todos_lotes = self.reagente_repo.listar(skip=0, limit=5000)
+            if self.reagente_service and todos_lotes:
+                estoques = list(self.reagente_service.agrupar_por_nome(todos_lotes).values())
+
+        reagentes_com_alerta: List[ReagenteAlertaItem] = []
+        tot_monitorados = len(estoques)
+        tot_baixo_estoque = 0
+        tot_reag_vencidos = 0
+        tot_reag_vencendo = 0
+        tot_lotes_vencidos = 0
+        tot_lotes_vencendo = 0
+
+        for est in estoques:
+            nome_reagente = est.reagente_nome
+            cod_reagente = est.reagente_codigo
+
+            # Lotes físicos vinculados
+            lotes_brutos = (
+                self.reagente_repo.buscar_por_nome(nome_reagente)
+                if self.reagente_repo
+                else []
+            ) or est.lotes or []
+
+            # Enriquecimento detalhado de cada lote
+            lotes_detalhados: List[ReagenteDetails] = []
+            for lote in lotes_brutos:
+                if self.reagente_service:
+                    lote_det = self.reagente_service.preencher_nao_informados(lote)
+                elif isinstance(lote, ReagenteDetails):
+                    lote_det = lote
+                else:
+                    lote_det = ReagenteDetails(**(lote if isinstance(lote, dict) else lote.__dict__))
+                lotes_detalhados.append(lote_det)
+
+            # Classificação utilizando a normalização especializada
+            classif = classificar_lotes_alertas(
+                lotes=lotes_detalhados,
+                limite_baixo_estoque=limite_baixo_estoque,
+                dias_vencimento=dias_vencimento,
+                data_referencia=data_ref,
+            )
+
+            # Atualiza contadores agregados
+            if classif["baixo_estoque_global"]:
+                tot_baixo_estoque += 1
+            if classif["tem_lotes_vencidos"]:
+                tot_reag_vencidos += 1
+                tot_lotes_vencidos += len(classif["lotes_vencidos"])
+            if classif["tem_lotes_vencendo"]:
+                tot_reag_vencendo += 1
+                tot_lotes_vencendo += len(classif["lotes_proximos_vencimento"])
+
+            if classif["tem_alerta"]:
+                reagentes_com_alerta.append(
+                    ReagenteAlertaItem(
+                        nome=nome_reagente,
+                        codigo=cod_reagente,
+                        quantidade_total_unidades=classif["quantidade_total_unidades"],
+                        quantidade_total_volume=est.quantidade_total_volume,
+                        resumo_estoque=est.resumo_estoque,
+                        baixo_estoque_global=classif["baixo_estoque_global"],
+                        tem_lotes_vencidos=classif["tem_lotes_vencidos"],
+                        tem_lotes_vencendo=classif["tem_lotes_vencendo"],
+                        tem_alerta=classif["tem_alerta"],
+                        lotes_vencidos=classif["lotes_vencidos"],
+                        lotes_proximos_vencimento=classif["lotes_proximos_vencimento"],
+                        lotes_regulares=classif["lotes_regulares"],
+                    )
+                )
+
+        parametros = ParametrosAlertaEstoque(
+            limite_baixo_estoque=limite_baixo_estoque,
+            janela_dias_vencimento=dias_vencimento,
+            data_referencia=data_ref,
+        )
+
+        totais = TotaisAlertasEstoque(
+            total_reagentes_monitorados=tot_monitorados,
+            total_reagentes_com_alerta=len(reagentes_com_alerta),
+            total_reagentes_baixo_estoque=tot_baixo_estoque,
+            total_reagentes_com_lotes_vencidos=tot_reag_vencidos,
+            total_reagentes_com_lotes_vencendo=tot_reag_vencendo,
+            total_lotes_vencidos=tot_lotes_vencidos,
+            total_lotes_vencendo=tot_lotes_vencendo,
+        )
+
+        return EstoqueAlertasResponse(
+            parametros=parametros,
+            totais=totais,
+            reagentes_com_alerta=reagentes_com_alerta,
+        )
 
     # -------------------------------------------------------------------------
     # OPERAÇÕES DE CRUD:

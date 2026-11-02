@@ -4,11 +4,12 @@ from src.controllers.animal_controller import router as animal_router
 from src.controllers.especie_controller import router as especie_router
 from src.controllers.amostra_controller import router as amostra_router
 from src.controllers.exame_controller import router as exame_router
-from src.controllers.estoque_reagente_controller import router as estoque_reagente_router
+from src.controllers.estoque_reagente_controller import router as estoque_router
 from src.controllers.reagente_controller import router as reagente_router
 from src.controllers.usuario_controller import router as usuario_router
 from src.models.Especie.especie_details import EspecieDetails
 from src.models.Animal.animal import Animal
+from fastapi.middleware.cors import CORSMiddleware
 from src.controllers.response_controller import registrar_tratamento_erros
 from src.data.connection import DatabaseManager
 
@@ -34,6 +35,29 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# Configuração de CORS para aplicação Web na VM da UFPI, aplicativo móvel e ambientes locais
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost",
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "http://localhost:8080",
+        "http://localhost:8501",
+        "http://127.0.0.1",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:5173",
+        "http://127.0.0.1:8080",
+        "http://127.0.0.1:8501",
+        "capacitor://localhost",
+        "ionic://localhost",
+    ],
+    allow_origin_regex=r"https?://.*\.ufpi\.br(:[0-9]+)?|capacitor://.*|ionic://.*",
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 registrar_tratamento_erros(app)
 
 app.include_router(usuario_router)
@@ -41,7 +65,7 @@ app.include_router(animal_router)
 app.include_router(especie_router)
 app.include_router(amostra_router)
 app.include_router(exame_router)
-app.include_router(estoque_reagente_router)
+app.include_router(estoque_router)
 app.include_router(reagente_router)
 
 @app.get("/")
